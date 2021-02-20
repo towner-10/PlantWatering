@@ -17,7 +17,7 @@
 var Gpio = require('pigpio'); // import onoff as gpio
 var Pin = Gpio.Gpio;
 
-class Pump {
+module.exports = class Pump {
 
     /** Constructor
      * @param pinNum: the pin number
@@ -30,36 +30,14 @@ class Pump {
         this.intensity = 255; //How hard to pump water (default 100%)
         this.enabled = false;
         
-        this.pumpPin = new Pin(pinNum, {mode:Pin.OUTPUT}); // makes a new Pin object with which we can send commands to GPIO
-        this.pumpPin.pwmFrequency(pwmFreq); //sets frequency of pwm
-    }
-
-    
-
-    // ====================== Setters ==========================
-    // Setters return the object; they are chainable
-
-    /**
-     * Sets how fast the pump runs
-     * @param {} intensity: Pwm duty cycle, 0 to 1.
-     * Will cap intensity between 0 and 1
-     */
-    set intensity(intensity) {
-        if (intensity > 1) intensity = 1;
-        else if (intensity < 0) intensity = 0;
-
-        this.intensity = Math.round(intensity * 255.0);
-        if (this.enabled) {
-            this.pumpPin.pwmWrite(this.intensity);
-        }
-
-        return this;
+        this.pumpPin = new Pin(pinNum, {mode: Gpio.OUTPUT}); // makes a new Pin object with which we can send commands to GPIO
+        this.pumpPin.pwmFrequency(this.pwmFreq); //sets frequency of pwm
     }
 
     /** Turns on the pump */
     enable() {
         //writes pwm between 0 and 255
-        this.pumpPin.pwmWrite(this.intensity);
+        this.pumpPin.pwmWrite((this.intensity / 255.0));
         this.enabled = true;
 
         return this;
@@ -80,42 +58,25 @@ class Pump {
     
         // Turns on the pump and wait for the timer to complete before turning off
         console.log('Squirting');
-        enable();
+        this.enable();
         setTimeout(() => {
             console.log('Done Squirting');
-            disable();
+            this.disable();
         }, time);
     }
 
 
-    // ==================== Getters ======================
-
-
     /**
-     * @returns the intensity of the pump
+     * Sets how fast the pump runs
+     * @param {} intensity: Pwm duty cycle, 0 to 1.
+     * Will cap intensity between 0 and 1
      */
-    get intensity() {
-        return (this.intensity / 255.0);
-    }
+    setIntensity(intensity) {
+        if (intensity > 1) intensity = 1;
+        else if (intensity < 0) intensity = 0;
+        
+        intensity = Math.round(intensity * 255.0);
 
-    /**
-     * @returns The GPIO pin number associated with the pump
-     */
-    get pinNum()  {
-        return this.pinNum;
-    }
-
-    /**
-     * @returns the Pin object associated with the pump
-     */
-    get pinNum() {
-        return this.pumpPin;
-    }
-
-    /** @returns boolean value describing whether pump is enabled or not */
-    get enabled() {
-        return this.enabled;
+        this.intensity = intensity;
     }
 }
-
-module.exports = Pump;

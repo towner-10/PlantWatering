@@ -25,19 +25,20 @@ const port = new SerialPort('/dev/ttyUSB0', function (err) {
 try {
     // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
     const Pump = require('./server/modules/Pump');
+    const pump = new Pump(21, 10000);
 
     // Put pump API here
     app.post('/api/water/pump', (req, res) => {
         let time = req.query.time;
     
-        Pump.squirt(time);
+        pump.squirt(time);
     
         res.json({
             'status': '200'
         });
     });
 } catch (error) {
-    console.log(err);
+    console.log(error);
 }
 
 app.use(Express.static('client'));
