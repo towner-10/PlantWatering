@@ -5,7 +5,7 @@ const WebSocket = require('ws');
 const serverPort = 80;
 const wss = new WebSocket.Server({port: 443});
 const SerialPort = require('serialport')
-const port = new SerialPort('/dev/tty-usbserial1', function (err) {
+const port = new SerialPort('/dev/ttyUSB0', function (err) {
     if (err) {
         return console.log('Error: ', err.message);
     }
@@ -13,10 +13,10 @@ const port = new SerialPort('/dev/tty-usbserial1', function (err) {
         port.on('data', function (data) {
             wss.clients.forEach(function each(client) {
                 if (client.readyState === WebSocket.OPEN) {
-                    client.send({
+                    client.send(JSON.stringify({
                         'data': parseInt(data.toString()),
                         'time': Date.now()
-                    });
+                    }));
                 }
             });
         });

@@ -49,7 +49,7 @@
             chart = new Chart(ctx, config);
         };
         
-        webSocket = new WebSocket('ws://localhost:443');
+        webSocket = new WebSocket(`ws://${window.location.hostname}:443`);
         webSocket.onopen = function() {
             console.log('Connection opened');
         };
