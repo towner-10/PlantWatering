@@ -10,3 +10,7 @@ Keep a plant alive, preferably one with well-draining soil so this program actua
 
 ## Modules:
 /Backend: Whatever backend stuff is needed, folder structure left open to future change
+
+## Dependencies:
+[PiGPIO](!https://github.com/fivdi/pigpio#installation)
+[Express](!https://expressjs.com/)

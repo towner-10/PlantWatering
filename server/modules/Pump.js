@@ -3,7 +3,7 @@
  * Purpose of Module: To expose a class which provides an interface for controlling a pump using PWM through GPIO
  * Methods are chainable
  * 
- * Version: 0.1.0
+ * Version: 0.2.0
  * Release Date: Feb 19, 2021
  * 
  * Dependencies:
