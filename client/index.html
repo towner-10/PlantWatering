@@ -1,81 +1,28 @@
-<head>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
-</head>
-<body>
-    <script>
-        var chart;
-        var config = {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: 'Current Reading',
-                    data: [],
-                    borderColor: '#002500',
-                    backgroundColor: '#929982'
-                }],
-            },
-            options: {
-                responsive: true,
-                title: {
-                    display: true,
-                    text: 'Moisture Reading'
-                },
-                scales: {
-                    xAxes: [{
-                        type: 'time',
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Time'
-                        },
-                        time: {
-                            unit: 'second'
-                        }
-                    }],
-                    yAxes: [{
-                        display: true,
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Reading'
-                        },
-                        ticks: {
-                            suggestedMin: 0,
-                            suggestedMax: 100
-                        }
-                    }]
-                }
-            }
-        }
+<!doctype html>
+<html lang="en">
+    <head>
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        window.onload = function() {
-            var ctx = document.getElementById('myChart').getContext('2d');
-            chart = new Chart(ctx, config);
-        };
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
         
-        webSocket = new WebSocket(`ws://${window.location.hostname}:443`);
-        webSocket.onopen = function() {
-            console.log('Connection opened');
-        };
-        webSocket.onmessage = function(event) {
-            json = JSON.parse(event.data);
-            stat = parseInt(json.data);
-            time = new Date(json.time);
+    </head>
+    <body>
+        <script defer src=render.js ></script>
 
-            config.data.datasets[0].data.push({
-                x: time,
-                y: stat
-            });
-            if (config.data.datasets[0].data.length > 60) {
-                config.data.datasets[0].data.shift();
-            }
-            chart.update();
-        };
-        webSocket.onclose = function() {
-            console.log('Connection closed');
-        }
-    </script>
-    <div class="chart-container" style="position: relative; height:40vh; width:80vw">
-        <canvas id="myChart"></canvas>
-    </div>
-</body>
+        <div class="chart-container" style="position: relative; height:60vh; width:80vw">
+            <canvas id="myChart"></canvas>
+        </div>
+
+        <div class="slider-container">
+            <input type="range" min="1" max="2400" value="60" class="form-range" id="timeSelector">
+            <output class="bubble" id="timeSelectorBubble"></output>
+        </div>
+
+        <!-- Must be at bottom -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js" integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0" crossorigin="anonymous"></script>
+    </body>
+</html>
