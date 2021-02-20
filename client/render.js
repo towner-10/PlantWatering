@@ -1,4 +1,6 @@
+const maxDataPointElements = 2400;
 var timeScale = 60; // how many of config.scales.xAxes.time.unit to count
+var globalDataPoints = [];
 var slider;
 var bubble;
 var chart;
@@ -99,15 +101,17 @@ function connect() {
         stat = parseInt(json.data);
         time = new Date(json.time);
     
-        // Push data into the config data then update the chart with the new config
-        config.data.datasets[0].data.push({
+        globalDataPoints.push({
             x: time,
             y: stat
         });
         
-        if (((time - config.data.datasets[0].data[0].x).valueOf() / 1000) > timeScale) {
-            config.data.datasets[0].data.shift();
-        }
+        while (globalDataPoints.length > maxDataPointElements) globalDataPoints.shift();
+
+        config.data.datasets[0].data = globalDataPoints.filter((value) => {
+            return ((time - value.x).valueOf() / 1000) > timeScale;
+        });
+
         chart.update();
     };
     
