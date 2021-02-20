@@ -28,7 +28,7 @@ try {
     const pump = new Pump(21, 10000);
 
     // Put pump API here
-    app.post('/api/water/pump', (req, res) => {
+    app.get('/api/water/pump', (req, res) => {
         let time = req.query.time;
     
         pump.squirt(time);

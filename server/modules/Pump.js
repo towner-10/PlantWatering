@@ -37,7 +37,7 @@ module.exports = class Pump {
     /** Turns on the pump */
     enable() {
         //writes pwm between 0 and 255
-        this.pumpPin.pwmWrite((this.intensity / 255.0));
+        this.pumpPin.pwmWrite(this.intensity);
         this.enabled = true;
 
         return this;
