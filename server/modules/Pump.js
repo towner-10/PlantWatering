@@ -34,6 +34,8 @@ class Pump {
         this.pumpPin.pwmFrequency(pwmFreq); //sets frequency of pwm
     }
 
+    
+
     // ====================== Setters ==========================
     // Setters return the object; they are chainable
 

@@ -1,0 +1,27 @@
+{
+  "name": "plant_watering",
+  "version": "0.1.0",
+  "description": "Automatic plant watering using a Raspberry Pi",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/towner-10/PlantWatering.git"
+  },
+  "author": "Collin Town & Darton Li",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/towner-10/PlantWatering/issues"
+  },
+  "homepage": "https://github.com/towner-10/PlantWatering#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "pigpio": "^3.3.0",
+    "readline": "^1.3.0",
+    "serialport": "^9.0.6",
+    "ws": "^7.4.3"
+  }
+}

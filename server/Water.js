@@ -2,7 +2,7 @@
  * Darton's test module
  */
 
-var Pump = require('./Pump'); // pump
+var Pump = require('./modules/Pump'); // pump
 const readline = require('readline');
 const Pin = require('pigpio').Gpio;
 
@@ -10,7 +10,6 @@ var pump = new Pump(21, 10000) // GPIO pi 21 is output
 
 var pumpInterval;
 var pumpPercent = 100;
-
 
 firePump();
 
@@ -58,7 +57,18 @@ function waitForEnd() {
         rl.close();
         endPump();
     })
-} 
+}
+
+function squirt(time) {
+    // Check if the time is within safe range
+    if (time > 2500) time = 2500;
+
+    // Turns on the pump and wait for the timer to complete before turning off
+    console.log('Pump On');
+    setTimeout(() => {
+        console.log('Pump Off');
+    }, time);
+}
 
 //setTimeout(endPump, 10000);
 

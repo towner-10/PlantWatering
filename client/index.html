@@ -1,0 +1,77 @@
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+</head>
+<body>
+    <script>
+        var chart;
+        var config = {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Current Reading',
+                    data: [],
+                    borderColor: '#002500',
+                    backgroundColor: '#929982'
+                }],
+            },
+            options: {
+                responsive: true,
+                title: {
+                    display: true,
+                    text: 'Moisture Reading'
+                },
+                scales: {
+                    xAxes: [{
+                        type: 'time',
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Time'
+                        },
+                        time: {
+                            unit: 'second'
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Reading'
+                        }
+                    }]
+                }
+            }
+        }
+
+        window.onload = function() {
+            var ctx = document.getElementById('myChart').getContext('2d');
+            chart = new Chart(ctx, config);
+        };
+        
+        webSocket = new WebSocket('ws://localhost:443');
+        webSocket.onopen = function() {
+            console.log('Connection opened');
+        };
+        webSocket.onmessage = function(event) {
+            json = JSON.parse(event.data);
+            stat = parseInt(json.data);
+            time = new Date(json.time);
+
+            config.data.datasets[0].data.push({
+                x: time,
+                y: stat
+            });
+            if (config.data.datasets[0].data.length > 60) {
+                config.data.datasets[0].data.shift();
+            }
+            chart.update();
+        };
+        webSocket.onclose = function() {
+            console.log('Connection closed');
+        }
+    </script>
+    <div class="chart-container" style="position: relative; height:40vh; width:80vw">
+        <canvas id="myChart"></canvas>
+    </div>
+</body>
