@@ -1,10 +1,9 @@
-//const Water = require('./server/Water');
 const Express = require('express');
 const app = Express();
 const WebSocket = require('ws');
 const serverPort = 80;
 const wss = new WebSocket.Server({port: 443});
-const SerialPort = require('serialport')
+const SerialPort = require('serialport');
 const port = new SerialPort('/dev/ttyUSB0', function (err) {
     if (err) {
         return console.log('Error: ', err.message);
@@ -23,21 +22,29 @@ const port = new SerialPort('/dev/ttyUSB0', function (err) {
     }
 });
 
+try {
+    // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
+    const Pump = require('./server/modules/Pump');
+
+    // Put pump API here
+    app.post('/api/water/pump', (req, res) => {
+        let time = req.query.time;
+    
+        Pump.squirt(time);
+    
+        res.json({
+            'status': '200'
+        });
+    });
+} catch (error) {
+    console.log(err);
+}
+
 app.use(Express.static('client'));
 
 app.get('/api/camera', (req, res) => {
     res.json({
         'status': '501'
-    });
-});
-
-app.post('/api/water/pump', (req, res) => {
-    let time = req.query.time;
-
-    Water.squirt(time);
-
-    res.json({
-        'status': '200'
     });
 });
 

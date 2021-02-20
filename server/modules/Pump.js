@@ -73,6 +73,20 @@ class Pump {
         return this;
     }
 
+    /** Squirts the pump for a determined time */
+    squirt(time) {
+        // Check if the time is within safe range
+        if (time > 2500) time = 2500;
+    
+        // Turns on the pump and wait for the timer to complete before turning off
+        console.log('Squirting');
+        enable();
+        setTimeout(() => {
+            console.log('Done Squirting');
+            disable();
+        }, time);
+    }
+
 
     // ==================== Getters ======================
 
