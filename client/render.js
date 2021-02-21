@@ -13,8 +13,8 @@ var config = {
         datasets: [{
             label: 'Current Reading',
             data: [],
-            borderColor: `$blue`,
-            backgroundColor: `$blue-300`,
+            borderColor: `#0275d8`,
+            backgroundColor: `#0275d8`,
         }],
     },
     options: {
@@ -43,7 +43,7 @@ var config = {
                 display: true,
                 scaleLabel: {
                     display: true,
-                    labelString: 'Reading'
+                    labelString: 'Reading (%)'
                 },
                 ticks: {
                     suggestedMin: 0,
@@ -57,6 +57,7 @@ var config = {
 window.addEventListener('load', (event) => {
     const ctx = document.getElementById('myChart').getContext('2d');
     bubble = document.getElementById("timeSelectorBubble"); //bubbles stolen from https://css-tricks.com/value-bubbles-for-range-inputs/
+    bubble.value = timeScale;
 
     slider = document.getElementById('timeSelector');
     slider.addEventListener("input", async () => {
@@ -66,7 +67,7 @@ window.addEventListener('load', (event) => {
         const min = slider.min ? slider.min : 0;
         const max = slider.max ? slider.max : 100;
         const newVal = Number(((val - min) * 100) / (max - min));
-        bubble.innerHTML = val;
+        bubble.value = val;
         
         // Sorta magic numbers based on size of the native UI thumb
         bubble.style.left = newVal + "%";
@@ -109,7 +110,7 @@ function connect() {
         while (globalDataPoints.length > maxDataPointElements) globalDataPoints.shift();
 
         config.data.datasets[0].data = globalDataPoints.filter((value) => {
-            return ((time - value.x).valueOf() / 1000) > timeScale;
+            return (Math.abs(time - value.x) / 1000) < timeScale;
         });
 
         chart.update();
