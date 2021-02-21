@@ -18,8 +18,6 @@ var config = {
         }],
     },
     options: {
-        responsive: true,
-        maintainAspectRatio: false,
         title: {
             display: false,
             text: 'Moisture Reading'
@@ -32,7 +30,7 @@ var config = {
                 type: 'time',
                 display: true,
                 scaleLabel: {
-                    display: true,
+                    display: false,
                     labelString: 'Time'
                 },
                 time: {
@@ -42,7 +40,7 @@ var config = {
             yAxes: [{
                 display: true,
                 scaleLabel: {
-                    display: true,
+                    display: false,
                     labelString: 'Reading (%)'
                 },
                 ticks: {
