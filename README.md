@@ -8,6 +8,11 @@ Learn how to use pumps and sensors with a Raspberry Pi
 
 Keep a plant alive, preferably one with well-draining soil so this program actually works
 
+Learn GraphQL
+Learn MongoDB, and how to log data onto a server
+Learn javascript
+Learn how to dynamically update graphs
+
 ## Modules:
 /Backend: Whatever backend stuff is needed, folder structure left open to future change
 
