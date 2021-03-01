@@ -116,4 +116,5 @@ dist
 .pnp.*
 
 # Custom Stuff
-CustomGpio.js
+storage.db
+storage.db-journal

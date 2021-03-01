@@ -20,9 +20,10 @@
   "homepage": "https://github.com/towner-10/PlantWatering#readme",
   "dependencies": {
     "express": "^4.17.1",
-    "node-webcam": "^0.8.0",
     "pigpio": "^3.3.0",
     "serialport": "^9.0.6",
+    "sqlite3": "^5.0.2",
+    "webcam-http-streaming": "^1.1.2",
     "ws": "^7.4.3"
   }
 }
