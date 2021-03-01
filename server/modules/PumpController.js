@@ -42,11 +42,12 @@ class PumpController {
     /** Constructor:
      * @param P: a number that determines how much the proportional gain will be
      * @param requiredError: A number to determine the absolute value the error must be greater than to activate
-     * @param period: How often, in ms, to call the checking function
+     * @param checkPeriod: How often, in ms, to call the checking function
+     * @param squirtPeriod: How often, in ms, to try to squirt.
      * @param setIntensity: The function for the controller to call to change the intensity of the output
      * @param pollFunction: The function for the controller to poll to see the current state of the sensor. Set to undefined to turn off polling.
      */
-    constructor(P, requiredError, period, setIntensity, pollFunction) {
+    constructor(P, requiredError, checkPeriod, squirtPeriod, setIntensity, pollFunction) {
         this.P = P
         this.setIntensity = setIntensity;
         this.pollFunction = pollFunction;
@@ -54,11 +55,25 @@ class PumpController {
         this.period = period;
 
         //interval
-        this.checkerFunction = setInterval(check, period);
+        this.checkerFunction = setInterval(this.check, checkPeriod);
+        this.squirtFunction = setInterval(this.squirt, squirtPeriod)
     }
 
+    /**
+     * To be used with relays
+     * If the checker function has found that it doesn't have enough water, squirt will run periodically. Otherwise, it will just return.
+     */
+    squirt() {
+        if (this.__activated) {
+            this.setIntensity(error * this.P);
 
-    /* ============================ Outward-facing Methods ========================== */
+            setTimeout(() => {
+                this.setIntensity(0);
+            }, 1000);
+        } else {
+            this.setIntensity(0);
+        }
+    }
 
     check() {
         if (!this.enabled) return;
@@ -69,12 +84,7 @@ class PumpController {
         if (Math.abs(error) > this.requiredError) {
             this.__activated = true;
         } else if (this.__activated) {
-            this.setIntensity(0);
             this.__activated = false;
-        }
-
-        if (this.__activated) {
-            this.setIntensity(error * this.P);
         }
     }
 
@@ -86,34 +96,22 @@ class PumpController {
     /** Turns the loop on */
     enable() {
         this.enabled = true;
+        updateLoop(this);
     }
 
     /** Turns the loop off */
     disable() {
         this.enabled = false;
-    }
-
-    /** Turns the loop on or off 
-     * @param enabled: boolean value
-    */
-    set enabled(enabled) {
-        this.enabled = enabled;
         updateLoop(this);
     }
+
 
     /** Informs the loop of the current state of the sensor 
      * @param current: must be numeric
     */
-    set current(current) {
+    setCurrent(current) {
         this.current = current;
         updateLoop(this);
-    }
-
-    /** Sets the target position
-     * @param target: must be numeric
-     */
-    set target(target) {
-        this.target = target;
     }
 }
 
