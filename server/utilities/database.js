@@ -10,6 +10,7 @@ module.exports = class Database {
             }
             else {
                 this.errorState = false;
+                this.db.run(`CREATE TABLE IF NOT EXISTS datapoints (value INT(255), time TIMESTAMP)`);
             }
         });
     }
