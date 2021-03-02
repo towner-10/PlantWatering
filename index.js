@@ -1,4 +1,5 @@
 const Express = require('express');
+const process = require('process');
 const app = Express();
 const WebSocket = require('ws');
 const serverPort = 80;
@@ -38,6 +39,15 @@ try {
         var time = req.query.time;
         pump.squirt(time);
         res.status(200).send("Pumping for " + time + "ms");
+    });
+
+    // On close
+    // SIGINT is generated on a CTRL-C exit
+    process.on('SIGINT', function () {
+        console.log("\n\nCleaning up GPIO...");
+        pump.disable();
+        console.log("Done cleaning up.");
+        process.exit(1);
     });
 } catch (error) {
     console.log(error);
