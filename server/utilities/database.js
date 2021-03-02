@@ -21,6 +21,12 @@ module.exports = class Database {
         }
     }
 
+    /**
+     * 
+     * @param {number} fromTime Beginning timestamp (UNIX FORMAT)
+     * @param {number} toTime Ending timestamp (UNIX FORMAT)
+     * @returns Promise containing the query result
+     */
     async getPoints(fromTime, toTime) {
         return await new Promise((resolve, reject) => {
             var arr = [];

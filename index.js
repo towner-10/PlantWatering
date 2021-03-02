@@ -5,6 +5,7 @@ const WebSocket = require('ws');
 const serverPort = 80;
 const wss = new WebSocket.Server({port: 443});
 const Database = require('./server/utilities/database');
+const Format = require('./server/utilities/format');
 const db = new Database();
 const SerialPort = require('serialport');
 const port = new SerialPort('/dev/ttyUSB0', function (err) {
@@ -54,7 +55,7 @@ try {
 }
 
 app.get('/api/test', (req, res) => {
-    db.getPoints(Math.floor((Date.now() - 1000 * 60 ) / 1000), Math.floor(Date.now() / 1000)).then((data) => {
+    db.getPoints(Format.convertDateToTimestamp(Format.dateSecondsAgo(60)), Format.convertDateToTimestamp(Date.now())).then((data) => {
         if (data == null) return res.status(500);
         return res.status(200).json(data);
     });
