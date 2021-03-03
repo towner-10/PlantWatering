@@ -1,3 +1,5 @@
+global.SERIAL_BUS_WAIT = 2000; // how long to wait before attempting to reconnect the serial bus
+
 const Express = require('express');
 const process = require('process');
 const app = Express();
@@ -51,6 +53,8 @@ Raspi.init(() => {
                     lcd.printLines("Value:", value);
                     readI2CData();
                 }
+
+                lastTimeSerial = Date.now();
             });
         }, 1000);
     }
@@ -68,6 +72,16 @@ try {
     // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
     const Pump = require('./server/modules/Pump');
     const pump = new Pump(21, 10000);
+
+    console.log("Main: Enabling Pump Controller");
+    const PumpController = require('./server/modules/PumpController');
+    pumpController = new PumpController(2, 10, 1000, pump, undefined, 50000, false);
+    pumpController.enable();
+    pumpController.setCurrent(60);
+    pumpController.setTarget(60);
+    
+    console.log("Success!\nMain: Enabling Pump");
+    pump.enable();
 
     // Put pump API here
     app.get('/api/water/pump', (req, res) => {
@@ -87,6 +101,46 @@ try {
     });
 } catch (error) {
     console.log(error);
+    console.log("The pump likely doesn't work on your system");
+}
+
+var mainLoop = setInterval(loop, 1000);
+var doesReconnect = false;
+
+/**
+ * A loop called every second, because there are functions that need to be done on repeat
+ */
+function loop() {
+    let currentTime = Date.now();
+
+    // If it's been greater than 2 seconds since we last got serial comms, try to reconnect the serial bus
+    if (currentTime - lastTimeSerial > SERIAL_BUS_WAIT && !doesReconnect) {
+        console.log("Serial bus disconnected! Attempting reconnect!");
+        emergencyStop();
+        serialReconnect();
+    }
+
+}
+
+port.on('error', function(err) {
+    console.log('Error: ', err.message)
+  });
+
+async function serialReconnect() {
+    doesReconnect = true;
+    setTimeout(() => {
+        port.close((err) => {
+            if (err) {
+                console.log("Error closing port!", err.message);
+            }
+        });
+        setTimeout(connectSerial, 30000);
+    }, 1000)
+
+}
+
+function emergencyStop() {
+    eventEmitter.emit('emergencyStop', []);
 }
 
 app.get('/api/test', (req, res) => {

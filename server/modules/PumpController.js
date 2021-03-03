@@ -9,31 +9,11 @@
  * 
  */
 
+const PUMP_MAX = 5 * 60 * 1000; //how much millis you're allowed to pump before stopping for fear of error
+const PUMP_MILLIS = 10000; //how many millis you pump for each pump
+
  /* =============================== Exposed Class ===================================== */
 class PumpController {
-
-    /* ============================== Variables ====================================== */
-
-    P = 1;
-    target = 0;  // Where you want the loop to be
-    current = 0; // Where the loop is right now
-    requiredError = 0; // How much the error has to be to activate
-
-
-    // functions the loop calls to control the thing in question
-    disableControl;
-    enableControl;
-    setIntensity;
-
-    // variables to determine behaviour of loop
-    enabled = false;
-    period = 10;
-    checkerFunction; // Function to run when changing intensity
-
-    
-    pollFunction; // Which function to poll for data
-    __activated = false; // If the loop turned on
-    
 
 
 
@@ -43,20 +23,41 @@ class PumpController {
      * @param P: a number that determines how much the proportional gain will be
      * @param requiredError: A number to determine the absolute value the error must be greater than to activate
      * @param checkPeriod: How often, in ms, to call the checking function
-     * @param squirtPeriod: How often, in ms, to try to squirt.
-     * @param setIntensity: The function for the controller to call to change the intensity of the output
+     * @param pump: The pump which belongs to the PumpController.
      * @param pollFunction: The function for the controller to poll to see the current state of the sensor. Set to undefined to turn off polling.
+     * @param squirtPeriod: How often, in ms, to try to squirt. Only applies if pwm is false.
+     * @param pwm: If this is running off a relay, use this.
      */
-    constructor(P, requiredError, checkPeriod, squirtPeriod, setIntensity, pollFunction) {
-        this.P = P
-        this.setIntensity = setIntensity;
-        this.pollFunction = pollFunction;
+    constructor(P, requiredError, checkPeriod, pump, pollFunction, squirtPeriod, pwm) {
+        this.target = 0;
+        this.current = 0;
+        this.enabled = false;
+        this.__activated = false;
+
+        this.P = P;
+        
+        this.pump = pump;
         this.requiredError = requiredError;
-        this.period = period;
+        this.pollFunction = pollFunction;
+        this.error = 0;
+        this.halted = false;
+
+        this.pwm = pwm;
+        this.timesPumped = 0;
+
+        this.lastTimeSerial = 0;
+
+        //make sure pump starts off
+        pump.setIntensity(0);
 
         //interval
-        this.checkerFunction = setInterval(this.check, checkPeriod);
-        this.squirtFunction = setInterval(this.squirt, squirtPeriod)
+        this.checkerFunction = setInterval(this.check.bind(this), checkPeriod);
+        if (!pwm) this.squirtFunction = setInterval(this.squirt.bind(this), squirtPeriod);
+
+        const {EventEmitter} = require('events');
+
+        this.listener = new EventEmitter();
+        this.listener.on("emergencyStop", this.EmergencyStop); //if index.js encounters an error, do this
     }
 
     /**
@@ -65,25 +66,53 @@ class PumpController {
      */
     squirt() {
         if (this.__activated) {
-            this.setIntensity(error * this.P);
+            if (this.timesPumped > PUMP_MAX) {
+                console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
+                "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
+                this.EmergencyStop();
+            }
 
-            setTimeout(() => {
-                this.setIntensity(0);
-            }, 1000);
+            this.pump.setIntensity(1);
+            this.timesPumped += PUMP_MILLIS;
+
+            //Turn off the pump after long enough
+            setTimeout(function() {
+                this.pump.setIntensity(0);
+            }.bind(this), PUMP_MILLIS);
         } else {
-            this.setIntensity(0);
+            this.pump.setIntensity(0);
         }
+    }
+
+    EmergencyStop() {
+        if (this.halted == false) {
+            console.log("The pump has been e-stopped!");
+            this.halted = true;
+        }
+        return;
     }
 
     check() {
         if (!this.enabled) return;
         if (this.pollFunction != undefined) this.current = this.pollFunction();
+        
+        this.error = this.target - this.current;
+        //console.log("error =", this.error);
 
-        let error = this.target - this.current;
-
-        if (Math.abs(error) > this.requiredError) {
+        if (this.error > this.requiredError) {
+            //If we're starting watering the first time, report it.
+            if (!this.__activated) console.log("Watering plant!");
             this.__activated = true;
-        } else if (this.__activated) {
+            
+    
+            //if we're using pwm
+            if (this.pwm) {
+                this.pump.setIntensity(this.error * this.P);
+            }
+        } 
+        else if (this.__activated) { // turn off the water if it's enough
+            console.log("Plant has enough water!");
+            this.pump.setIntensity(0);
             this.__activated = false;
         }
     }
@@ -91,27 +120,45 @@ class PumpController {
     /** Kills the current loop */
     killLoop() {
         clearInterval(checkerFunction);
+        if (this.squirtFunction != undefined) clearInterval(this.squirtFunction);
     }
 
     /** Turns the loop on */
     enable() {
         this.enabled = true;
-        updateLoop(this);
     }
 
     /** Turns the loop off */
     disable() {
         this.enabled = false;
-        updateLoop(this);
     }
 
+
+    /** Stops squirting */
+    deactivate() {
+        console.log("Plant has enough water!");
+        this.pump.setIntensity(0);
+        this.__activated = false;
+        this.timesPumped = 0;
+    }
 
     /** Informs the loop of the current state of the sensor 
      * @param current: must be numeric
     */
     setCurrent(current) {
+        if (current < 0) current = 0;
         this.current = current;
-        updateLoop(this);
+        if (current > this.target && this.__activated) {
+            console.log("Plant has enough water!");
+            this.pump.setIntensity(0);
+            this.__activated = false;
+        }
+
+        this.lastTimeUpdated = Date.now();
+    }
+
+    setTarget(target) {
+        this.target = target;
     }
 }
 

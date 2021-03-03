@@ -16,6 +16,7 @@
 
 var Gpio = require('pigpio'); // import onoff as gpio
 var Pin = Gpio.Gpio;
+var process = require('process'); // So that VS Code can use autofill
 
 module.exports = class Pump {
 
@@ -23,13 +24,15 @@ module.exports = class Pump {
      * @param pinNum: the pin number
      * @param pwmFreq: pwm frequency in hz, >= 0.
      */
+
     constructor(pinNum, pwmFreq) {
         this.pinNum = pinNum;
         this.pwmFreq = pwmFreq;
 
         this.intensity = 255; //How hard to pump water (default 100%)
         this.enabled = false;
-        
+        process.on('SIGINT', this.onClose);
+        this.pumpPin = new Pin(pinNum, {mode: Gpio.INPUT});
         this.pumpPin = new Pin(pinNum, {mode: Gpio.OUTPUT}); // makes a new Pin object with which we can send commands to GPIO
         this.pumpPin.pwmFrequency(this.pwmFreq); //sets frequency of pwm
     }
@@ -75,9 +78,15 @@ module.exports = class Pump {
     setIntensity(intensity) {
         if (intensity > 1) intensity = 1;
         else if (intensity < 0) intensity = 0;
-        
+
         intensity = Math.round(intensity * 255.0);
 
         this.intensity = intensity;
+        this.pumpPin.pwmWrite(intensity);
+    }
+
+    onClose() {
+        console.log("Cleaning pin", this.pinNum);
+        this.pumpPin.mode({Mode: GPIO.INPUT});
     }
 }
