@@ -24,6 +24,7 @@ module.exports = class Pump {
      * @param pinNum: the pin number
      * @param pwmFreq: pwm frequency in hz, >= 0.
      */
+
     constructor(pinNum, pwmFreq) {
         this.pinNum = pinNum;
         this.pwmFreq = pwmFreq;

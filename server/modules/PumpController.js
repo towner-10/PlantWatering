@@ -45,12 +45,19 @@ class PumpController {
         this.pwm = pwm;
         this.timesPumped = 0;
 
+        this.lastTimeSerial = 0;
+
         //make sure pump starts off
         pump.setIntensity(0);
 
         //interval
         this.checkerFunction = setInterval(this.check.bind(this), checkPeriod);
         if (!pwm) this.squirtFunction = setInterval(this.squirt.bind(this), squirtPeriod);
+
+        const {EventEmitter} = require('events');
+
+        this.listener = new EventEmitter();
+        this.listener.on("emergencyStop", this.EmergencyStop); //if index.js encounters an error, do this
     }
 
     /**
@@ -60,13 +67,9 @@ class PumpController {
     squirt() {
         if (this.__activated) {
             if (this.timesPumped > PUMP_MAX) {
-
-                if (this.halted == false) {
-                    console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
-                    "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
-                    this.halted = true;
-                }
-                return;
+                console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
+                "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
+                this.EmergencyStop();
             }
 
             this.pump.setIntensity(1);
@@ -79,6 +82,14 @@ class PumpController {
         } else {
             this.pump.setIntensity(0);
         }
+    }
+
+    EmergencyStop() {
+        if (this.halted == false) {
+            console.log("The pump has been e-stopped!");
+            this.halted = true;
+        }
+        return;
     }
 
     check() {
@@ -142,6 +153,8 @@ class PumpController {
             this.pump.setIntensity(0);
             this.__activated = false;
         }
+
+        this.lastTimeUpdated = Date.now();
     }
 
     setTarget(target) {
