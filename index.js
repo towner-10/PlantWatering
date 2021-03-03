@@ -26,14 +26,32 @@ const port = new SerialPort('/dev/ttyUSB0', function (err) {
                     }));
                 }
             });
+
+            // Report new data to the pump controller
+            try {
+                pumpController.setCurrent(value);
+            } catch (ignored) {}
+
         });
     }
 });
+
+var pumpController;
 
 try {
     // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
     const Pump = require('./server/modules/Pump');
     const pump = new Pump(21, 10000);
+
+    console.log("Main: Enabling Pump Controller");
+    const PumpController = require('./server/modules/PumpController');
+    pumpController = new PumpController(2, 10, 1000, pump, undefined, 50000, false);
+    pumpController.enable();
+    pumpController.setCurrent(60);
+    pumpController.setTarget(60);
+    
+    console.log("Success!\nMain: Enabling Pump");
+    pump.enable();
 
     // Put pump API here
     app.get('/api/water/pump', (req, res) => {
@@ -52,6 +70,7 @@ try {
     });
 } catch (error) {
     console.log(error);
+    console.log("The pump likely doesn't work on your system");
 }
 
 app.get('/api/test', (req, res) => {
