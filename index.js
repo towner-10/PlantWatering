@@ -9,51 +9,64 @@ const wss = new WebSocket.Server({port: 443});
 const Database = require('./server/utilities/database');
 const Format = require('./server/utilities/format');
 const db = new Database();
-const SerialPort = require('serialport');
-const {EventEmitter} = require('events');
-const eventEmitter = new EventEmitter();
-var port;
+const Raspi = require('raspi');
+const I2C = require('raspi-i2c').I2C;
+const ADS1x15 = require('./controllers/ADS1x15');
+const LCD = require('./controllers/LCD');
+const lcd = new LCD();
 
-connectSerial();
+Raspi.init(() => {
+    
+    // Init Raspi-I2c
+    const i2c = new I2C();
+    
+    // Init the ADC
+    const adc = new ADS1x15({
+        i2c,                                    // i2c interface
+        chip: ADS1x15.chips.IC_ADS1015,         // chip model
+        address: ADS1x15.address.ADDRESS_0x48,  // i2c address on the bus
+        
+        // Defaults for future readings
+        pga: ADS1x15.pga.PGA_4_096V,            // power-gain-amplifier range
+        sps: ADS1x15.spsADS1015.SPS_250         // data rate (samples per second)
+    });
 
-function connectSerial() {
-    port = new SerialPort('/dev/ttyUSB0', function (err) {
-        if (err) {
-            return console.log('Error: ', err.message);
-        }
-        else {
-            port.on('data', function (data) {
-                const currentTime = Date.now();
-                const value = parseInt(data.toString());
+    function readI2CData() {
+        setTimeout(() => {
+            adc.getLastReading((err, value, volts) => {
+                if (err) {
+                    console.error('Failed to fetch value from ADC', err);
+                } else {
+                    const currentTime = Date.now();
+                    value = Format.map(value, 550, 10, 0, 100);
 
-                db.addPoint(value, Math.floor(currentTime / 1000));
-                wss.clients.forEach(function each(client) {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            'data': value,
-                            'time': currentTime
-                        }));
-                    }
-                });
+                    db.addPoint(value, Math.floor(currentTime / 1000));
+                    wss.clients.forEach(function each(client) {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                'data': value,
+                                'time': currentTime
+                            }));
+                        }
+                    });
 
-                // Report new data to the pump controller
-                try {
-                    pumpController.setCurrent(value);
-                } catch (err) {
-                    console.log(err);
+                    lcd.printLines("Value:", value);
+                    readI2CData();
                 }
 
                 lastTimeSerial = Date.now();
             });
+        }, 1000);
+    }
+    
+    adc.startContinuousChannel(ADS1x15.channel.CHANNEL_0, (err, value, volts) => {
+        if (err) {
+            console.error('Failed to fetch value from ADC', err);
+        } else {
+            readI2CData();
         }
     });
-
-    setTimeout(() => {doesReconnect = false;}, 10000); // After 10 seconds, allow the waterer to try to reconnect again (if this failed);
-}
-
-var lastTimeSerial; // When did we last get data?
-
-var pumpController;
+});
 
 try {
     // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
@@ -82,6 +95,7 @@ try {
     process.on('SIGINT', function () {
         console.log("\n\nCleaning up GPIO...");
         pump.disable();
+        lcd.clear();
         console.log("Done cleaning up.");
         process.exit(1);
     });
