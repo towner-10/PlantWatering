@@ -58,14 +58,14 @@ var pumpController;
 try {
     // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
     const Pump = require('./server/modules/Pump');
-    const pump = new Pump(21, 10000);
+    const pump = new Pump(21, 1000);
 
     console.log("Main: Enabling Pump Controller");
     const PumpController = require('./server/modules/PumpController');
-    pumpController = new PumpController(2, 10, 1000, pump, undefined, 50000, false);
+    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 50000, true);
     pumpController.enable();
-    pumpController.setCurrent(60);
-    pumpController.setTarget(60);
+    pumpController.setCurrent(70);
+    pumpController.setTarget(70);
     
     console.log("Success!\nMain: Enabling Pump");
     pump.enable();

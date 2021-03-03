@@ -2,7 +2,7 @@
  * Programmer: Darton Li
  * Purpose of Module: To expose a class which controls water levels, without a PID loop.
  * 
- * Version: 0.1.0
+ * Version: 0.4.0
  * Release Date: Feb 19, 2021
  * 
  * Dependencies:
