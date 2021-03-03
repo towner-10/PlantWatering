@@ -19,8 +19,12 @@
   },
   "homepage": "https://github.com/towner-10/PlantWatering#readme",
   "dependencies": {
+    "async": "^3.2.0",
     "express": "^4.17.1",
     "pigpio": "^3.3.0",
+    "raspberrypi-liquid-crystal": "^1.15.0",
+    "raspi": "^6.0.1",
+    "raspi-i2c": "^6.2.4",
     "serialport": "^9.0.6",
     "sqlite3": "^5.0.2",
     "webcam-http-streaming": "^1.1.2",
