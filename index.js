@@ -1,7 +1,15 @@
+/** Index.js
+ *  By Collin Town & Darton Li
+ *  
+ *  Dependencies:
+ *  I2C enabled with raspi-config
+ * 
+ */
+
 global.SERIAL_BUS_WAIT = 2000; // how long to wait before attempting to reconnect the serial bus
 
 const Express = require('express');
-const process = require('process');
+//const process = require('process');
 const app = Express();
 const WebSocket = require('ws');
 const serverPort = 80;
@@ -14,6 +22,7 @@ const I2C = require('raspi-i2c').I2C;
 const ADS1x15 = require('./controllers/ADS1x15');
 const LCD = require('./controllers/LCD');
 const lcd = new LCD();
+var lastTimeData;
 
 Raspi.init(() => {
     
@@ -52,9 +61,13 @@ Raspi.init(() => {
 
                     lcd.printLines("Value:", value);
                     readI2CData();
+
+                    pumpController.setCurrent(value);
+
+                    lastTimeData = Date.now();
                 }
 
-                lastTimeSerial = Date.now();
+                
             });
         }, 1000);
     }
@@ -75,7 +88,7 @@ try {
 
     console.log("Main: Enabling Pump Controller");
     const PumpController = require('./server/modules/PumpController');
-    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 50000, true);
+    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, true);
     pumpController.enable();
     pumpController.setCurrent(70);
     pumpController.setTarget(70);
@@ -114,28 +127,11 @@ function loop() {
     let currentTime = Date.now();
 
     // If it's been greater than 2 seconds since we last got serial comms, try to reconnect the serial bus
-    if (currentTime - lastTimeSerial > SERIAL_BUS_WAIT && !doesReconnect) {
+    if (currentTime - lastTimeData > SERIAL_BUS_WAIT && !doesReconnect) {
         console.log("Serial bus disconnected! Attempting reconnect!");
         emergencyStop();
         serialReconnect();
     }
-
-}
-
-port.on('error', function(err) {
-    console.log('Error: ', err.message)
-  });
-
-async function serialReconnect() {
-    doesReconnect = true;
-    setTimeout(() => {
-        port.close((err) => {
-            if (err) {
-                console.log("Error closing port!", err.message);
-            }
-        });
-        setTimeout(connectSerial, 30000);
-    }, 1000)
 
 }
 

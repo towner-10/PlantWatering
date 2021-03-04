@@ -16,7 +16,7 @@
 
 var Gpio = require('pigpio'); // import onoff as gpio
 var Pin = Gpio.Gpio;
-var process = require('process'); // So that VS Code can use autofill
+//var process = require('process'); // So that VS Code can use autofill
 
 module.exports = class Pump {
 
