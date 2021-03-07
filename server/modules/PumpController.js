@@ -2,15 +2,15 @@
  * Programmer: Darton Li
  * Purpose of Module: To expose a class which controls water levels, without a PID loop.
  * 
- * Version: 0.1.0
+ * Version: 0.4.0
  * Release Date: Feb 19, 2021
  * 
  * Dependencies:
  * 
  */
 
-const PUMP_MAX = 5 * 60 * 1000; //how much millis you're allowed to pump before stopping for fear of error
-const PUMP_MILLIS = 2000; //how many millis you pump for each pump
+const PUMP_MAX = 0.5 * 60 * 1000; //how much millis you're allowed to pump before stopping for fear of error
+const PUMP_MILLIS = 1000; //how many millis you pump for each pump
 
  /* =============================== Exposed Class ===================================== */
 class PumpController {
@@ -44,6 +44,7 @@ class PumpController {
 
         this.pwm = pwm;
         this.timesPumped = 0;
+        this.checkPeriod = checkPeriod;
 
         this.lastTimeSerial = 0;
 
@@ -57,7 +58,7 @@ class PumpController {
         const {EventEmitter} = require('events');
 
         this.listener = new EventEmitter();
-        this.listener.on("emergencyStop", this.EmergencyStop); //if index.js encounters an error, do this
+        this.listener.on("emergencyStop", this.emergencyStop); //if index.js encounters an error, do this
     }
 
     /**
@@ -69,7 +70,8 @@ class PumpController {
             if (this.timesPumped > PUMP_MAX) {
                 console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
                 "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
-                this.EmergencyStop();
+                this.emergencyStop();
+                return;
             }
 
             this.pump.setIntensity(1);
@@ -84,9 +86,10 @@ class PumpController {
         }
     }
 
-    EmergencyStop() {
+    emergencyStop() {
         if (this.halted == false) {
-            console.log("The pump has been e-stopped!");
+            console.error("The pump has been e-stopped!");
+            this.pump.setIntensity(0);
             this.halted = true;
         }
         return;
@@ -99,19 +102,39 @@ class PumpController {
         this.error = this.target - this.current;
         //console.log("error =", this.error);
 
+        if (this.timesPumped > PUMP_MAX && this.halted == false) {
+            console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
+            "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
+            this.emergencyStop();
+        }
+
         if (this.error > this.requiredError) {
             //If we're starting watering the first time, report it.
-            if (!this.__activated) console.log("Watering plant!");
+            if (!this.__activated) {
+                console.log("Watering plant!");
+            }
             this.__activated = true;
             
     
             //if we're using pwm
             if (this.pwm) {
-                this.pump.setIntensity(this.error * this.P);
+                let intensity = 1; // start the intensity at 1 for the first half-second to kick the motor
+                if (this.timesPumped > 500) {
+                    intensity = this.error * this.P;
+                } 
+        
+                
+                //console.log("Intensity", intensity);
+                
+                this.pump.setIntensity(1);
+                //keep a log of how much we've been pumping (in ms at 100%)
+                this.timesPumped += (intensity > 1 ? 1 : intensity) * this.checkPeriod;
             }
         } 
         else if (this.__activated) { // turn off the water if it's enough
             console.log("Plant has enough water!");
+            this.halted = false;
+            this.timesPumped = 0;
             this.pump.setIntensity(0);
             this.__activated = false;
         }

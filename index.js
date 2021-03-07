@@ -1,5 +1,15 @@
+/** Index.js
+ *  By Collin Town & Darton Li
+ *  
+ *  Dependencies:
+ *  I2C enabled with raspi-config
+ * 
+ */
+
+global.SERIAL_BUS_WAIT = 2000; // how long to wait before attempting to reconnect the serial bus
+
 const Express = require('express');
-const process = require('process');
+//const process = require('process');
 const app = Express();
 const WebSocket = require('ws');
 const serverPort = 80;
@@ -12,6 +22,10 @@ const I2C = require('raspi-i2c').I2C;
 const ADS1x15 = require('./controllers/ADS1x15');
 const LCD = require('./controllers/LCD');
 const lcd = new LCD();
+const {EventEmitter} = require('events');
+const eventEmitter = new EventEmitter();
+
+var lastTimeData;
 
 var pumpController;
 
@@ -54,9 +68,13 @@ Raspi.init(() => {
                     pumpController.setCurrent(value);
                     lcd.printLines("Value:", value);
                     readI2CData();
+
+                    pumpController.setCurrent(value);
+
+                    lastTimeData = Date.now();
                 }
 
-                lastTimeSerial = Date.now();
+                
             });
         }, 1000);
     }
@@ -74,14 +92,14 @@ Raspi.init(() => {
 try {
     // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
     const Pump = require('./server/modules/Pump');
-    const pump = new Pump(21, 10000);
+    const pump = new Pump(21, 1000);
 
     console.log("Main: Enabling Pump Controller");
     const PumpController = require('./server/modules/PumpController');
-    pumpController = new PumpController(2, 1, 1000, pump, undefined, 10000, false);
+    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, true);
     pumpController.enable();
-    pumpController.setCurrent(75);
-    pumpController.setTarget(75);
+    pumpController.setCurrent(40);
+    pumpController.setTarget(40);
     
     console.log("Success!\nMain: Enabling Pump");
     pump.enable();
@@ -107,6 +125,30 @@ try {
     console.log("The pump likely doesn't work on your system");
 }
 
+var mainLoop = setInterval(loop, 1000);
+var doesReconnect = false;
+
+/**
+ * A loop called every second, because there are functions that need to be done on repeat
+ */
+function loop() {
+    let currentTime = Date.now();
+
+    // If it's been greater than 2 seconds since we last got serial comms, try to reconnect the serial bus
+    if (currentTime - lastTimeData > SERIAL_BUS_WAIT && !doesReconnect) {
+        console.log("Serial bus disconnected! Attempting reconnect!");
+        emergencyStop();
+        serialReconnect(); //TODO: Make this something
+    }
+
+}
+
+function emergencyStop() {
+    eventEmitter.emit('emergencyStop', []);
+}
+
+/* ----------------------------- WebServer Stuff ---------------------------- */
+
 app.get('/api/test', (req, res) => {
     db.getPoints(Format.convertDateToTimestamp(Format.dateSecondsAgo(60)), Format.convertDateToTimestamp(Date.now())).then((data) => {
         if (data == null) return res.status(500);
@@ -123,3 +165,17 @@ app.listen(serverPort, () => {
 function emergencyStop() {
     eventEmitter.emit('emergencyStop', []);
 }
+//set up comms between server & client
+wss.on('connection', function connection(ws) {
+    ws.on('message', (data) => {
+
+        let json = JSON.parse(data);
+        console.log(json.type);
+        if (json.type == 'moisture update') {
+            let value = json.value;
+            console.log(`Moisture updated to ${value}`);
+            pumpController.setTarget(value);
+        }
+        
+    });
+});
