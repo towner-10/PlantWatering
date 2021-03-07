@@ -22,6 +22,9 @@ const I2C = require('raspi-i2c').I2C;
 const ADS1x15 = require('./controllers/ADS1x15');
 const LCD = require('./controllers/LCD');
 const lcd = new LCD();
+const {EventEmitter} = require('events');
+const eventEmitter = new EventEmitter();
+
 var lastTimeData;
 
 Raspi.init(() => {
@@ -90,8 +93,8 @@ try {
     const PumpController = require('./server/modules/PumpController');
     pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, true);
     pumpController.enable();
-    pumpController.setCurrent(70);
-    pumpController.setTarget(70);
+    pumpController.setCurrent(40);
+    pumpController.setTarget(40);
     
     console.log("Success!\nMain: Enabling Pump");
     pump.enable();
@@ -130,7 +133,7 @@ function loop() {
     if (currentTime - lastTimeData > SERIAL_BUS_WAIT && !doesReconnect) {
         console.log("Serial bus disconnected! Attempting reconnect!");
         emergencyStop();
-        serialReconnect();
+        serialReconnect(); //TODO: Make this something
     }
 
 }
@@ -138,6 +141,8 @@ function loop() {
 function emergencyStop() {
     eventEmitter.emit('emergencyStop', []);
 }
+
+/* ----------------------------- WebServer Stuff ---------------------------- */
 
 app.get('/api/test', (req, res) => {
     db.getPoints(Format.convertDateToTimestamp(Format.dateSecondsAgo(60)), Format.convertDateToTimestamp(Date.now())).then((data) => {
@@ -150,4 +155,19 @@ app.use(Express.static('client'));
 
 app.listen(serverPort, () => {
     console.log(`Listening at http://localhost:${serverPort}`);
+});
+
+//set up comms between server & client
+wss.on('connection', function connection(ws) {
+    ws.on('message', (data) => {
+
+        let json = JSON.parse(data);
+        console.log(json.type);
+        if (json.type == 'moisture update') {
+            let value = json.value;
+            console.log(`Moisture updated to ${value}`);
+            pumpController.setTarget(value);
+        }
+        
+    });
 });

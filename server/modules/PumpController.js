@@ -89,7 +89,7 @@ class PumpController {
     emergencyStop() {
         if (this.halted == false) {
             console.error("The pump has been e-stopped!");
-            this.setIntensity(0);
+            this.pump.setIntensity(0);
             this.halted = true;
         }
         return;

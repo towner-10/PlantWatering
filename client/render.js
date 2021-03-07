@@ -1,11 +1,13 @@
 const maxDataPointElements = 2400;
 var timeScale = 60; // how many of config.scales.xAxes.time.unit to count
+var moisture = 60;
 var globalDataPoints = [];
 var slider;
 var bubble;
 var chart;
 var successToast;
 var errorToast;
+var webSocket;
 
 var config = {
     type: 'line',
@@ -70,6 +72,28 @@ window.addEventListener('load', (event) => {
         // Sorta magic numbers based on size of the native UI thumb
         bubble.style.left = newVal + "%";
     });
+
+    moistureSelector = document.getElementById('moistureSelector');
+    moistureSelector.addEventListener("input", async () => {
+        const val = moistureSelector.value;
+        bubble2.value = val;
+        bubble2.style.left = val + "%";
+
+        
+        try {
+            webSocket.send(JSON.stringify({
+                'type': 'moisture update',
+                'value': val
+            }));
+            console.log("Sending websocket!");
+        } catch (err) {
+            console.error(err);
+        }
+    });
+
+    bubble2 = document.getElementById("moistureSelectorBubble");
+    bubble2.value = moisture;
+
 
     chart = new Chart(ctx, config);
 
