@@ -10,7 +10,7 @@
  */
 
 const PUMP_MAX = 5 * 60 * 1000; //how much millis you're allowed to pump before stopping for fear of error
-const PUMP_MILLIS = 10000; //how many millis you pump for each pump
+const PUMP_MILLIS = 2000; //how many millis you pump for each pump
 
  /* =============================== Exposed Class ===================================== */
 class PumpController {
