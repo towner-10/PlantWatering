@@ -89,7 +89,7 @@ try {
 
     console.log("Main: Enabling Pump Controller");
     const PumpController = require('./server/modules/PumpController');
-    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, false);
+    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, eventEmitter, false);
     pumpController.enable();
     pumpController.setCurrent(40);
     pumpController.setTarget(40);
@@ -129,7 +129,7 @@ function loop() {
 
     // If it's been greater than 2 seconds since we last got serial comms, try to reconnect the serial bus
     if (currentTime - lastTimeData > SERIAL_BUS_WAIT && !doesReconnect) {
-        console.log("Serial bus disconnected! Attempting reconnect!");
+        console.log("I2C disconnected! Attempting reconnect!");
         emergencyStop();
         //serialReconnect(); //TODO: Make this something
     }
@@ -137,7 +137,7 @@ function loop() {
 }
 
 function emergencyStop() {
-    console.log(eventEmitter.listeners('emergencyStop'));
+    //console.log(eventEmitter.listeners('emergencyStop'));
     eventEmitter.emit('emergencyStop', {});
 }
 

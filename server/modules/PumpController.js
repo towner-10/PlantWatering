@@ -26,9 +26,11 @@ class PumpController {
      * @param pump: The pump which belongs to the PumpController.
      * @param pollFunction: The function for the controller to poll to see the current state of the sensor. Set to undefined to turn off polling.
      * @param squirtPeriod: How often, in ms, to try to squirt. Only applies if pwm is false.
+     * @param eventEmitter: An EventEmitter.
      * @param pwm: If this is running off a relay, use this.
      */
-    constructor(P, requiredError, checkPeriod, pump, pollFunction, squirtPeriod, pwm) {
+    constructor(P, requiredError, checkPeriod, pump, pollFunction, squirtPeriod, eventEmitter, pwm) {
+        this.eventEmitter = eventEmitter;
         this.target = 0;
         this.current = 0;
         this.enabled = false;
@@ -57,10 +59,7 @@ class PumpController {
 
         const {EventEmitter} = require('events');
 
-        this.listener = new EventEmitter();
-        this.listener.on("emergencyStop", function estop() {
-            console.log("Pump Controller doing an e-stop");
-            this.emergencyStop()}); //if index.js encounters an error, do this
+        this.eventEmitter.on("emergencyStop", this.emergencyStop.bind(this)); //if index.js encounters an error, do this
     }
 
     /**
@@ -91,6 +90,7 @@ class PumpController {
     }
 
     emergencyStop() {
+        //console.error("E-stop called!");
         if (this.halted == false) {
             console.error("The pump has been e-stopped!");
             this.pump.setIntensity(0);
