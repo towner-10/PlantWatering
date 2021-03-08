@@ -27,6 +27,8 @@ const eventEmitter = new EventEmitter();
 
 var lastTimeData;
 
+var pumpController;
+
 Raspi.init(() => {
     
     // Init Raspi-I2c
@@ -47,6 +49,7 @@ Raspi.init(() => {
         setTimeout(() => {
             adc.getLastReading((err, value, volts) => {
                 if (err) {
+                    emergencyStop();
                     console.error('Failed to fetch value from ADC', err);
                 } else {
                     const currentTime = Date.now();
@@ -71,6 +74,7 @@ Raspi.init(() => {
     
     adc.startContinuousChannel(ADS1x15.channel.CHANNEL_0, (err, value, volts) => {
         if (err) {
+            emergencyStop();
             console.error('Failed to fetch value from ADC', err);
         } else {
             readI2CData();
@@ -164,8 +168,6 @@ function sendToClients(data) {
     });
 }
 
-//TODO:mem
-//wss.clients
 
 //set up comms between server & client
 wss.on('connection', function connection(ws) {

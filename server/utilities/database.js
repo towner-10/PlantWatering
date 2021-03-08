@@ -10,7 +10,8 @@ module.exports = class Database {
             }
             else {
                 this.errorState = false;
-                this.db.run(`CREATE TABLE IF NOT EXISTS datapoints (value INT(255), time TIMESTAMP)`);
+                this.db.run(`CREATE TABLE IF NOT EXISTS datapoints (value REAL, time TIMESTAMP)`);
+                this.db.run(`CREATE TABLE IF NOT EXISTS pumpHistory (start TIMESTAMP, end TIMESTAMP)`);
             }
         });
     }
@@ -40,6 +41,38 @@ module.exports = class Database {
                     arr.push({
                         'data': row.value,
                         'time': row.time
+                    });
+                });
+                resolve(arr);
+            });
+        });
+    }
+
+    addPumpHistory(start, end) {
+        if (this.errorState == false) {
+            this.db.run(`INSERT INTO pumpHistory VALUES (${start}, ${end});`);
+        }
+    }
+
+    /**
+     * Fetches the pump history between 2 timestamps
+     * @param {number} fromTime Beginning timestamp (UNIX FORMAT)
+     * @param {number} toTime Ending timestamp (UNIX FORMAT)
+     * @returns Promise containing the query result
+     */
+    async getPumpHistory(fromTime, toTime) {
+        return await new Promise((resolve, reject) => {
+            var arr = [];
+
+            this.db.all(`SELECT * FROM pumpHistory WHERE start BETWEEN ${fromTime} and ${toTime};`, [], (err, rows) => {
+                if (err) {
+                    console.log(err);
+                    reject(null);
+                }
+                rows.forEach((row) => {
+                    arr.push({
+                        'start': row.start,
+                        'end': row.end
                     });
                 });
                 resolve(arr);
