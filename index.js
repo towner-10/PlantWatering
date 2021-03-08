@@ -20,8 +20,6 @@ const db = new Database();
 const Raspi = require('raspi');
 const I2C = require('raspi-i2c').I2C;
 const ADS1x15 = require('./controllers/ADS1x15');
-const LCD = require('./controllers/LCD');
-const lcd = new LCD();
 const {EventEmitter} = require('events');
 const eventEmitter = new EventEmitter();
 
@@ -66,7 +64,6 @@ Raspi.init(() => {
                     });
                     
                     pumpController.setCurrent(value);
-                    lcd.printLines("Value:", value);
                     readI2CData();
 
                     pumpController.setCurrent(value);
@@ -116,7 +113,6 @@ try {
     process.on('SIGINT', function () {
         console.log("\n\nCleaning up GPIO...");
         pump.disable();
-        lcd.clear();
         console.log("Done cleaning up.");
         process.exit(1);
     });
@@ -125,7 +121,7 @@ try {
     console.log("The pump likely doesn't work on your system");
 }
 
-var mainLoop = setInterval(loop, 1000);
+//var mainLoop = setInterval(loop, 1000);
 var doesReconnect = false;
 
 /**
@@ -138,7 +134,7 @@ function loop() {
     if (currentTime - lastTimeData > SERIAL_BUS_WAIT && !doesReconnect) {
         console.log("Serial bus disconnected! Attempting reconnect!");
         emergencyStop();
-        serialReconnect(); //TODO: Make this something
+        //serialReconnect(); //TODO: Make this something
     }
 
 }
@@ -162,9 +158,6 @@ app.listen(serverPort, () => {
     console.log(`Listening at http://localhost:${serverPort}`);
 });
 
-function emergencyStop() {
-    eventEmitter.emit('emergencyStop', []);
-}
 //set up comms between server & client
 wss.on('connection', function connection(ws) {
     ws.on('message', (data) => {
