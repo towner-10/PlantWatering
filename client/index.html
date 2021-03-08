@@ -15,48 +15,45 @@
     
     <body>
         <script src="render.js"></script>
-        <div class="container-fluid">
-          <div class="row">
-            <main class="px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Dashboard</h1>
-                </div>
-                <canvas class="" id="myChart" style="display: block; width: 75vw;"></canvas>
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h2>Options</h2>
-                </div>
-                <div class="col-10">
-                    <div class="slider-container">
-                        <input type="range" min="1" max="2400" value="60" class="form-range" id="timeSelector">
-                    </div>
-                </div>
-                <div class="row border-bottom">
-                    <div class="col">
-                        <p class="text-left">Time Scale:</p>
+        <main class="px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Dashboard</h1>
+            </div>
+            <div style="width: 90vw; height: 50vh; margin: auto;">
+                <canvas id="myChart"></canvas>
+            </div>
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h2>Options</h2>
+            </div>
+
+            <div class="container-fluid">
+                <h5 class="pt-2">Time Scale:</h5>
+                <div class="row pb-3">
+                    <div class="col-11">
+                        <div class="slider-container">
+                            <input type="range" min="1" max="2400" value="60" class="form-range" id="timeSelector">
+                        </div>
                     </div>
                     <div class="col">
                         <input type="number" min="1" max="2400" class="bubble" id="timeSelectorBubble" aria-describedby="currentTimeScale" disabled>
                     </div>
                 </div>
 
-                <div class="col-10">
-                    <div class="slider-container">
-                        <input type = "range" min="0" max="100" value="60" class="form-range" id="moistureSelector">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col">
-                        <p class="text-left">Moisture Level:</p>
+                <h5>Moisture Level:</h5>
+                <div class="row pb-3">
+                    <div class="col-11">
+                        <div class="slider-container">
+                            <input type="range" min="0" max="100" value="60" class="form-range" id="moistureSelector">
+                        </div>
                     </div>
                     <div class="col">
                         <input type="number" min="0" max="100" class="bubble" id="moistureSelectorBubble" aria-describedby="moistureSelector" disabled>
                     </div>
                 </div>
             </div>
-          </div>
-        </div>
+        </main>
 
-<!-- -------- Toasts: Alerts for when the server <dis/re>-connects --------- -->
+        <!-- Toasts: Alerts for server connection status -->
         <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 5">
             <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">

@@ -12,6 +12,11 @@
 const PUMP_MAX = 0.5 * 60 * 1000; //how much millis you're allowed to pump before stopping for fear of error
 const PUMP_MILLIS = 1000; //how many millis you pump for each pump
 
+const Database = require('../utilities/database');
+const db = new Database().getInstance();
+
+const Format = require('../utilities/format');
+
  /* =============================== Exposed Class ===================================== */
 class PumpController {
 
@@ -26,9 +31,11 @@ class PumpController {
      * @param pump: The pump which belongs to the PumpController.
      * @param pollFunction: The function for the controller to poll to see the current state of the sensor. Set to undefined to turn off polling.
      * @param squirtPeriod: How often, in ms, to try to squirt. Only applies if pwm is false.
+     * @param eventEmitter: An EventEmitter.
      * @param pwm: If this is running off a relay, use this.
      */
-    constructor(P, requiredError, checkPeriod, pump, pollFunction, squirtPeriod, pwm) {
+    constructor(P, requiredError, checkPeriod, pump, pollFunction, squirtPeriod, eventEmitter, pwm) {
+        this.eventEmitter = eventEmitter;
         this.target = 0;
         this.current = 0;
         this.enabled = false;
@@ -57,8 +64,7 @@ class PumpController {
 
         const {EventEmitter} = require('events');
 
-        this.listener = new EventEmitter();
-        this.listener.on("emergencyStop", this.emergencyStop); //if index.js encounters an error, do this
+        this.eventEmitter.on("emergencyStop", this.emergencyStop.bind(this)); //if index.js encounters an error, do this
     }
 
     /**
@@ -67,19 +73,26 @@ class PumpController {
      */
     squirt() {
         if (this.__activated) {
-            if (this.timesPumped > PUMP_MAX) {
+            if (this.halted) return;
+
+            if (this.timesPumped > PUMP_MAX && !this.halted) {
                 console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
                 "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
                 this.emergencyStop();
                 return;
             }
 
+            var startTime = Date.now();
+
             this.pump.setIntensity(1);
             this.timesPumped += PUMP_MILLIS;
 
             //Turn off the pump after long enough
             setTimeout(function() {
+                var endTime = Date.now();
                 this.pump.setIntensity(0);
+
+                db.addPumpHistory(Format.convertDateToTimestamp(startTime), Format.convertDateToTimestamp(endTime));
             }.bind(this), PUMP_MILLIS);
         } else {
             this.pump.setIntensity(0);
@@ -87,6 +100,7 @@ class PumpController {
     }
 
     emergencyStop() {
+        //console.error("E-stop called!");
         if (this.halted == false) {
             console.error("The pump has been e-stopped!");
             this.pump.setIntensity(0);
@@ -109,6 +123,9 @@ class PumpController {
         }
 
         if (this.error > this.requiredError) {
+
+            if (this.halted) return;
+
             //If we're starting watering the first time, report it.
             if (!this.__activated) {
                 console.log("Watering plant!");

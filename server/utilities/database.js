@@ -1,7 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 
-module.exports = class Database {
-
+class Database {
     constructor() {
         this.db = new sqlite3.Database('storage.db', (err) => {
             if (err) {
@@ -50,6 +49,7 @@ module.exports = class Database {
 
     addPumpHistory(start, end) {
         if (this.errorState == false) {
+            console.log("Start: " + start + " | End: " + end);
             this.db.run(`INSERT INTO pumpHistory VALUES (${start}, ${end});`);
         }
     }
@@ -82,5 +82,17 @@ module.exports = class Database {
 
     close() {
         if (this.errorState == false) this.db.close();
+    }
+}
+
+module.exports = class Singleton {
+    constructor() {
+        if (!Singleton.instance) {
+            Singleton.instance = new Database();
+        }
+    }
+
+    getInstance() {
+        return Singleton.instance;
     }
 }
