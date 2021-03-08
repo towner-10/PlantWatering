@@ -83,9 +83,8 @@ window.addEventListener('load', (event) => {
         try {
             webSocket.send(JSON.stringify({
                 'type': 'moisture update',
-                'value': val
+                'data': val
             }));
-            console.log("Sending websocket!");
         } catch (err) {
             console.error(err);
         }
@@ -121,21 +120,34 @@ function connect() {
     
     webSocket.onmessage = function(event) {
         json = JSON.parse(event.data);
-        stat = parseInt(json.data);
-        time = new Date(json.time);
+        type = json.type;
+
+        //differentiate between different types of comms
+        switch (type) {
+            case 'stats':
+                stat = parseInt(json.data);
+                time = new Date(json.time);
+            
+                globalDataPoints.push({
+                    x: time,
+                    y: stat
+                });
+                
+                while (globalDataPoints.length > maxDataPointElements) globalDataPoints.shift();
     
-        globalDataPoints.push({
-            x: time,
-            y: stat
-        });
-        
-        while (globalDataPoints.length > maxDataPointElements) globalDataPoints.shift();
-
-        config.data.datasets[0].data = globalDataPoints.filter((value) => {
-            return (Math.abs(time - value.x) / 1000) < timeScale;
-        });
-
-        chart.update();
+                config.data.datasets[0].data = globalDataPoints.filter((value) => {
+                    return (Math.abs(time - value.x) / 1000) < timeScale;
+                });
+    
+                chart.update();
+                break;
+            
+            case 'moisture update':
+                moisture = parseInt(json.data);
+                moistureSelector.value = moisture;
+                console.info(`Received moisture update from server: New moisture: ${moisture}`);
+                break;
+        }
     };
     
     webSocket.onclose = function() {

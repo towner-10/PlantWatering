@@ -58,7 +58,9 @@ class PumpController {
         const {EventEmitter} = require('events');
 
         this.listener = new EventEmitter();
-        this.listener.on("emergencyStop", this.emergencyStop); //if index.js encounters an error, do this
+        this.listener.on("emergencyStop", function estop() {
+            console.log("Pump Controller doing an e-stop");
+            this.emergencyStop()}); //if index.js encounters an error, do this
     }
 
     /**
@@ -67,7 +69,9 @@ class PumpController {
      */
     squirt() {
         if (this.__activated) {
-            if (this.timesPumped > PUMP_MAX) {
+            if (this.halted) return;
+
+            if (this.timesPumped > PUMP_MAX && !this.halted) {
                 console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
                 "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
                 this.emergencyStop();
@@ -109,6 +113,9 @@ class PumpController {
         }
 
         if (this.error > this.requiredError) {
+
+            if (this.halted) return;
+
             //If we're starting watering the first time, report it.
             if (!this.__activated) {
                 console.log("Watering plant!");

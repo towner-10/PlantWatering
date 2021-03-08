@@ -53,14 +53,8 @@ Raspi.init(() => {
                     value = Format.map(value, 550, 10, 0, 100);
 
                     db.addPoint(value, Math.floor(currentTime / 1000));
-                    wss.clients.forEach(function each(client) {
-                        if (client.readyState === WebSocket.OPEN) {
-                            client.send(JSON.stringify({
-                                'data': value,
-                                'time': currentTime
-                            }));
-                        }
-                    });
+
+                    sendToClients({'type': 'stats', 'data': value, 'time': currentTime});
 
                     lcd.printLines("Value:", value);
                     readI2CData();
@@ -91,7 +85,7 @@ try {
 
     console.log("Main: Enabling Pump Controller");
     const PumpController = require('./server/modules/PumpController');
-    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, true);
+    pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, false);
     pumpController.enable();
     pumpController.setCurrent(40);
     pumpController.setTarget(40);
@@ -133,13 +127,14 @@ function loop() {
     if (currentTime - lastTimeData > SERIAL_BUS_WAIT && !doesReconnect) {
         console.log("Serial bus disconnected! Attempting reconnect!");
         emergencyStop();
-        serialReconnect(); //TODO: Make this something
+        //serialReconnect(); //TODO: Make this something
     }
 
 }
 
 function emergencyStop() {
-    eventEmitter.emit('emergencyStop', []);
+    console.log(eventEmitter.listeners('emergencyStop'));
+    eventEmitter.emit('emergencyStop', {});
 }
 
 /* ----------------------------- WebServer Stuff ---------------------------- */
@@ -157,16 +152,37 @@ app.listen(serverPort, () => {
     console.log(`Listening at http://localhost:${serverPort}`);
 });
 
+/**
+ * Sends json data to all clients
+ * @param {Object} data Json unstringified
+ */
+function sendToClients(data) {
+    wss.clients.forEach(function each(client) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(data));
+        }
+    });
+}
+
+//TODO:mem
+//wss.clients
+
 //set up comms between server & client
 wss.on('connection', function connection(ws) {
+
+    //Listeners
     ws.on('message', (data) => {
 
         let json = JSON.parse(data);
-        console.log(json.type);
-        if (json.type == 'moisture update') {
-            let value = json.value;
-            console.log(`Moisture updated to ${value}`);
-            pumpController.setTarget(value);
+        
+        switch(json.type) {
+            case 'moisture update':
+                let value = json.data;
+                console.info(`Moisture updated to ${value}`);
+                pumpController.setTarget(value);
+
+                sendToClients({'type': 'moisture update', 'data': value});
+                break;
         }
         
     });
