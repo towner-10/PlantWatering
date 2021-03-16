@@ -37,7 +37,16 @@
                       </div>
                 </div>
 
-                <h5 class="pt-2">Time Scale:</h5>
+                <div class="pt-2 fs-5">Time Scale:</div>
+                <div class="small pb-2 d-flex flex-align-middle">
+                    <span>Measured in</span>
+                    <select class="mx-1" id="timeUnitSelector">
+                        <option value="1000">seconds</option>
+                        <option value="60000">minutes</option>
+                        <option value="3600000">hours</option>
+                        <option value="86400000">days</option>
+                    </select>
+                </div>
                 <div class="row pb-3">
                     <div class="col-11">
                         <div class="slider-container">
