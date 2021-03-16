@@ -26,6 +26,8 @@ const I2C = require('raspi-i2c').I2C;
 const ADS1x15 = require('./controllers/ADS1x15');
 const {EventEmitter} = require('events');
 const eventEmitter = new EventEmitter();
+var adcWorking = true;
+var estopped = false;
 
 
 var pumpController;
@@ -39,23 +41,38 @@ Raspi.init(() => {
     const i2c = new I2C();
     
     // Init the ADC
-    const adc = new ADS1x15({
-        i2c,                                    // i2c interface
-        chip: ADS1x15.chips.IC_ADS1015,         // chip model
-        address: ADS1x15.address.ADDRESS_0x48,  // i2c address on the bus
-        
-        // Defaults for future readings
-        pga: ADS1x15.pga.PGA_4_096V,            // power-gain-amplifier range
-        sps: ADS1x15.spsADS1015.SPS_250         // data rate (samples per second)
-    });
+    var adc 
+    connectToAdc();
+
+    function connectToAdc() {
+        console.log("Adc: Connecting");
+        adc = new ADS1x15({
+            i2c,                                    // i2c interface
+            chip: ADS1x15.chips.IC_ADS1015,         // chip model
+            address: ADS1x15.address.ADDRESS_0x48,  // i2c address on the bus
+            
+            // Defaults for future readings
+            pga: ADS1x15.pga.PGA_4_096V,            // power-gain-amplifier range
+            sps: ADS1x15.spsADS1015.SPS_250         // data rate (samples per second)
+        });
+    }
 
     function readI2CData() {
         setTimeout(() => {
+
             adc.getLastReading((err, value, volts) => {
                 if (err) {
                     emergencyStop();
-                    console.error('Failed to fetch value from ADC', err);
+                    console.error('ADC: Failed to fetch value', err);
+                    adcWorking = false;
+                    connectToAdc();
+                    readI2CData();
                 } else {
+                    if (!adcWorking) {
+                        adcWorking = true;
+                        liftEmergency();
+                    }
+
                     const currentTime = Date.now();
                     value = Format.map(value, 550, 10, 0, 100);
 
@@ -100,7 +117,7 @@ try {
     console.log("Main: Enabling Pump Controller");
     const PumpController = require('./server/modules/PumpController');
     pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, eventEmitter, false);
-    pumpController.enable();
+   
     
     console.log("Main: Pump Controller setup success!" + 
         "\nMain: Enabling Pump");
@@ -112,6 +129,10 @@ try {
     //Load settings
     let target = settings.getSetting("PumpController.target");
     if (target != undefined) pumpController.setTarget(target);
+
+    let enabled = settings.getSetting("PumpController.enabled");
+    if (enabled == undefined || enabled === true) pumpController.enable();
+    else if (enabled === false) pumpController.disable();
 
 } catch (error) {
     console.log(error);
@@ -196,20 +217,55 @@ function sendToClient(client, data) {
 //set up comms between server & client
 wss.on('connection', function connection(ws) {
 
-    ws.on('open', sendToClient, ws, {'type': 'moisture update', 'data': pumpController.target});
+    if (!ws.OPEN) {
+        ws.on('open', () => {  
+            sendToClient(ws, {'type': 'moisture update', 'data': pumpController.target});
+            sendToClient(ws, {'type': 'enable', 'value': pumpController.enabled});
+        });
+    } else {
+        sendToClient(ws, {'type': 'moisture update', 'data': pumpController.target});
+    }
+    
 
     //Listeners
-    ws.on('message', (data) => {
+    ws.on('message', async (data) => {
 
-        let json = JSON.parse(data);
+        let json = await JSON.parse(data);
         
         switch(json.type) {
             case 'moisture update':
                 let value = json.data;
                 pumpController.setTarget(value);
-                sendToClients({'type': 'moisture update', 'data': value});
+                sendToClients(json);
                 settings.setSetting("PumpController.target", value);
                 break;
+
+            case 'historical data request':
+                //console.log("Got historical data request", json);
+                switch (json.statType) { 
+                    case 'MOISTURE':
+                        //console.log("Got historical data request");
+                        db.getPoints(json.fromTime, json.toTime)
+                            .then((arr) => {
+                                //console.log("Sending historical data!");
+                                sendToClient(ws, {'type': 'batch stats', 'data': arr});
+                            });
+                        break;
+                    //Add pump in later if we want
+                }
+                break;
+            
+            case 'enable':
+                sendToClients(json);
+                if (json.value === true) {
+                    pumpController.enable();
+                    settings.setSetting("PumpController.enabled", json.value);
+                } else if (json.value === false) {
+                    pumpController.disable();
+                    settings.setSetting("PumpController.enabled", json.value);
+                }
+
+            break;
         }
         
     });
@@ -226,5 +282,11 @@ app.listen(serverPort, () => {
 
 function emergencyStop() {
     eventEmitter.emit('emergencyStop', {});
+    estopped = true;
+}
+
+function liftEmergency() {
+    eventEmitter.emit('liftEmergency', {});
+    estopped = false
 }
 

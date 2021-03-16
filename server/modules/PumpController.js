@@ -26,7 +26,7 @@ class PumpController {
 
     /** Constructor:
      * @param P: a number that determines how much the proportional gain will be
-     * @param requiredError: A number to determine the absolute value the error must be greater than to activate
+     * @param tolerance: A number to determine the absolute value the error must be greater than to activate
      * @param checkPeriod: How often, in ms, to call the checking function
      * @param pump: The pump which belongs to the PumpController.
      * @param pollFunction: The function for the controller to poll to see the current state of the sensor. Set to undefined to turn off polling.
@@ -34,7 +34,7 @@ class PumpController {
      * @param eventEmitter: An EventEmitter.
      * @param pwm: If this is running off a relay, use this.
      */
-    constructor(P, requiredError, checkPeriod, pump, pollFunction, squirtPeriod, eventEmitter, pwm) {
+    constructor(P, tolerance, checkPeriod, pump, pollFunction, squirtPeriod, eventEmitter, pwm) {
         console.log(`   PumpController at pin ${pump.pinNum}: I'm alive!`);
         this.eventEmitter = eventEmitter;
         this.target = 60;
@@ -45,7 +45,7 @@ class PumpController {
         this.P = P;
         
         this.pump = pump;
-        this.requiredError = requiredError;
+        this.tolerance = tolerance;
         this.pollFunction = pollFunction;
         this.error = 0;
         this.halted = false;
@@ -67,6 +67,7 @@ class PumpController {
 
         this.eventEmitter.on("emergencyStop", this.emergencyStop.bind(this)); //if index.js encounters an error, do this
         this.eventEmitter.on("cleanup", this.pump.onClose.bind(pump));
+        this.eventEmitter.on('liftEmergency', this.liftEmergency.bind(this));
     }
 
     /**
@@ -74,8 +75,7 @@ class PumpController {
      * If the checker function has found that it doesn't have enough water, squirt will run periodically. Otherwise, it will just return.
      */
     squirt() {
-        if (this.__activated) {
-            if (this.halted) return;
+        if (this.__activated && this.enabled && !this.halted) {
 
             if (this.timesPumped > PUMP_MAX && !this.halted) {
                 console.log(`   PumpController at pin ${pump.pinNum}: The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?`,
@@ -102,7 +102,7 @@ class PumpController {
     }
 
     emergencyStop() {
-        //console.error("E-stop called!");
+
         if (this.halted == false) {
             console.error("The pump has been e-stopped!");
             this.pump.setIntensity(0);
@@ -111,12 +111,17 @@ class PumpController {
         return;
     }
 
+    liftEmergency() {
+        console.log("The emergency condition has been lifted!");
+        this.halted = false;
+    }
+
     check() {
         if (!this.enabled) return;
         if (this.pollFunction != undefined) this.current = this.pollFunction();
         
+
         this.error = this.target - this.current;
-        //console.log("error =", this.error);
 
         if (this.timesPumped > PUMP_MAX && this.halted == false) {
             console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
@@ -124,9 +129,9 @@ class PumpController {
             this.emergencyStop();
         }
 
-        if (this.error > this.requiredError) {
+        if (this.error > this.tolerance) {
 
-            if (this.halted) return;
+            if (this.halted) {return};
 
             //If we're starting watering the first time, report it.
             if (!this.__activated) {
@@ -150,12 +155,14 @@ class PumpController {
                 this.timesPumped += (intensity > 1 ? 1 : intensity) * this.checkPeriod;
             }
         } 
-        else if (this.__activated) { // turn off the water if it's enough
-            console.log("Plant has enough water!");
+        else { // turn off the water if it's enough
+            if (this.__activated) {
+                console.log("Plant has enough water!");
+                this.pump.setIntensity(0);
+                this.__activated = false;
+            }
             this.halted = false;
             this.timesPumped = 0;
-            this.pump.setIntensity(0);
-            this.__activated = false;
         }
     }
 
@@ -167,11 +174,13 @@ class PumpController {
 
     /** Turns the loop on */
     enable() {
+        console.log("Pump Controller: Enabled");
         this.enabled = true;
     }
 
     /** Turns the loop off */
     disable() {
+        console.log("Pump Controller: Disabled");
         this.enabled = false;
     }
 
