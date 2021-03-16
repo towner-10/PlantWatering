@@ -35,9 +35,10 @@ class PumpController {
      * @param pwm: If this is running off a relay, use this.
      */
     constructor(P, requiredError, checkPeriod, pump, pollFunction, squirtPeriod, eventEmitter, pwm) {
+        console.log(`   PumpController at pin ${pump.pinNum}: I'm alive!`);
         this.eventEmitter = eventEmitter;
-        this.target = 0;
-        this.current = 0;
+        this.target = 60;
+        this.current = 60;
         this.enabled = false;
         this.__activated = false;
 
@@ -65,6 +66,7 @@ class PumpController {
         const {EventEmitter} = require('events');
 
         this.eventEmitter.on("emergencyStop", this.emergencyStop.bind(this)); //if index.js encounters an error, do this
+        this.eventEmitter.on("cleanup", this.pump.onClose.bind(pump));
     }
 
     /**
@@ -76,8 +78,8 @@ class PumpController {
             if (this.halted) return;
 
             if (this.timesPumped > PUMP_MAX && !this.halted) {
-                console.log("The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?",
-                "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
+                console.log(`   PumpController at pin ${pump.pinNum}: The pump controller suspects the device is no longer functioning. Maybe the pipe fell out or the sensor got waterlogged?`,
+                                "The pump controller will no longer deliver water until the sensor detects that the plant no longer needs water one time.");
                 this.emergencyStop();
                 return;
             }
@@ -128,7 +130,7 @@ class PumpController {
 
             //If we're starting watering the first time, report it.
             if (!this.__activated) {
-                console.log("Watering plant!");
+                console.log("Pump Controller: Watering plant!");
             }
             this.__activated = true;
             

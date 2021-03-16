@@ -31,7 +31,7 @@ module.exports = class Pump {
 
         this.intensity = 255; //How hard to pump water (default 100%)
         this.enabled = false;
-        process.on('SIGINT', this.onClose);
+
         this.pumpPin = new Pin(pinNum, {mode: Gpio.INPUT});
         this.pumpPin = new Pin(pinNum, {mode: Gpio.OUTPUT}); // makes a new Pin object with which we can send commands to GPIO
         this.pumpPin.pwmFrequency(this.pwmFreq); //sets frequency of pwm
@@ -61,10 +61,10 @@ module.exports = class Pump {
         if (time > 2500) time = 2500;
     
         // Turns on the pump and wait for the timer to complete before turning off
-        console.log('Squirting');
+        console.log(`Pump ${pinNum}: Squirting`);
         this.enable();
         setTimeout(() => {
-            console.log('Done Squirting');
+            console.log(`Pump ${pinNum}: Done Squirting`);
             this.disable();
         }, time);
     }
@@ -86,7 +86,7 @@ module.exports = class Pump {
     }
 
     onClose() {
-        console.log("Cleaning pin", this.pinNum);
-        this.pumpPin.mode({Mode: GPIO.INPUT});
+    console.log(`Pump ${this.pinNum}: cleaning pin`, this.pinNum);
+        this.pumpPin.mode(0); //Make it an input
     }
 }

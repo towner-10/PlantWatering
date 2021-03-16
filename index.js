@@ -11,25 +11,30 @@
 
 global.SERIAL_BUS_WAIT = 2000; // how long to wait before attempting to reconnect the serial bus
 
+console.log("Main: Starting up");
+const serverPort = 80;
+const WebSocket = require('ws');
 const Express = require('express');
 const app = Express();
-const WebSocket = require('ws');
-const serverPort = 80;
-const wss = new WebSocket.Server({port: 443});
 const Format = require('./server/utilities/format');
 const Database = require('./server/utilities/database');
 const db = new Database().getInstance();
+const SettingsHandler = require('./server/utilities/settingsHandler.js');
+const settings = new SettingsHandler().getInstance();
 const Raspi = require('raspi');
 const I2C = require('raspi-i2c').I2C;
 const ADS1x15 = require('./controllers/ADS1x15');
 const {EventEmitter} = require('events');
 const eventEmitter = new EventEmitter();
 
-var lastTimeData;
+
 var pumpController;
+
 
 Raspi.init(() => {
     
+    console.log("Main: Beginning I2C Communications");
+
     // Init Raspi-I2c
     const i2c = new I2C();
     
@@ -69,44 +74,103 @@ Raspi.init(() => {
             });
         }, 1000);
     }
-    
+    console.log("Main: I2C comms setup done!");
+
+    console.log("Main: Starting up ADC");
     adc.startContinuousChannel(ADS1x15.channel.CHANNEL_0, (err, value, volts) => {
         if (err) {
             emergencyStop();
             console.error('Failed to fetch value from ADC', err);
         } else {
             readI2CData();
+            console.log("Main: ADC done!");
         }
     });
+
 });
+
+// define pump outside of try/catch so we can clean it up later on
+var pump;
 
 try {
     // Simple trycatch to make sure program doesn't crash if the Pump doesn't work on current system
     const Pump = require('./server/modules/Pump');
-    const pump = new Pump(21, 1000);
+    pump = new Pump(21, 1000);
 
     console.log("Main: Enabling Pump Controller");
     const PumpController = require('./server/modules/PumpController');
     pumpController = new PumpController(0.02, 3, 100, pump, undefined, 10000, eventEmitter, false);
     pumpController.enable();
-    pumpController.setCurrent(40);
-    pumpController.setTarget(40);
     
-    console.log("Success!\nMain: Enabling Pump");
+    console.log("Main: Pump Controller setup success!" + 
+        "\nMain: Enabling Pump");
     pump.enable();
 
-    // On close
-    // SIGINT is generated on a CTRL-C exit
-    process.on('SIGINT', function () {
-        console.log("\n\nCleaning up GPIO...");
-        pump.disable();
-        console.log("Done cleaning up.");
-        process.exit(1);
-    });
+    console.log("Main: Pump enabled!");
+
+
+    //Load settings
+    let target = settings.getSetting("PumpController.target");
+    if (target != undefined) pumpController.setTarget(target);
+
 } catch (error) {
     console.log(error);
     console.log("The pump likely doesn't work on your system");
 }
+
+
+/* ---------------------------- Console Commands ---------------------------- */
+
+const readline = require("readline");
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+try {
+    // When some input's been given to stdin, record it
+    rl.on('line', (input) => {
+        
+        input = input.toLowerCase();
+        switch (input) {
+            case 'stop':
+                cleanup();
+                break;
+            default:
+        }
+
+      });
+
+
+    // For some reason, readLine's SIGINT catching actually catches SIGINT. What the fsck?
+    rl.on('SIGINT', cleanup);
+} catch (error) {
+    console.error(error);
+}
+
+
+/* --------------------------- Handle App Closing --------------------------- */
+// On close
+// SIGINT is generated on a CTRL-C exit
+
+function cleanup() {
+    process.on('SIGINT', cleanup);
+    console.log("\n\nCleaning up GPIO...");
+    pump.disable();
+    eventEmitter.emit("cleanup", {});
+    console.log("Done cleaning up.");
+    rl.close();
+    process.exit(1);
+}
+
+process.on('SIGINT', cleanup);
+
+
+
+/* ------------------------------- WebSockets ------------------------------- */
+
+const wss = new WebSocket.Server({port: 443});
 
 /**
  * Sends JSON data to all clients
@@ -120,8 +184,19 @@ function sendToClients(data) {
     });
 }
 
+/**
+ * Sends data to one client
+ * @param {websocket} client 
+ * @param {Object} data 
+ */
+function sendToClient(client, data) {
+    client.send(JSON.stringify(data));
+}
+
 //set up comms between server & client
 wss.on('connection', function connection(ws) {
+
+    ws.on('open', sendToClient, ws, {'type': 'moisture update', 'data': pumpController.target});
 
     //Listeners
     ws.on('message', (data) => {
@@ -133,20 +208,23 @@ wss.on('connection', function connection(ws) {
                 let value = json.data;
                 pumpController.setTarget(value);
                 sendToClients({'type': 'moisture update', 'data': value});
+                settings.setSetting("PumpController.target", value);
                 break;
         }
         
     });
 });
 
-/* ----------------------------- WebServer Stuff ---------------------------- */
+
+/* ----------------------------- Web server stuff ---------------------------- */
 
 app.use(Express.static('client'));
 
 app.listen(serverPort, () => {
-    console.log(`Listening at http://localhost:${serverPort}`);
+    console.log(`Web Server: Listening at http://localhost:${serverPort}`);
 });
 
 function emergencyStop() {
     eventEmitter.emit('emergencyStop', {});
 }
+
