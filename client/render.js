@@ -68,6 +68,11 @@ var config = {
                     suggestedMax: 100
                 }
             }]
+        },
+        elements: {
+            line: {
+                cubicInterpolationMode: 'monotone'
+            }
         }
     }
 }
