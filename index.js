@@ -224,6 +224,7 @@ wss.on('connection', function connection(ws) {
         });
     } else {
         sendToClient(ws, {'type': 'moisture update', 'data': pumpController.target});
+        sendToClient(ws, {'type': 'enable', 'value': pumpController.enabled});
     }
     
 
@@ -241,14 +242,12 @@ wss.on('connection', function connection(ws) {
                 break;
 
             case 'historical data request':
-                //console.log("Got historical data request", json);
                 switch (json.statType) { 
                     case 'MOISTURE':
-                        //console.log("Got historical data request");
                         db.getPoints(json.fromTime, json.toTime)
                             .then((arr) => {
-                                //console.log("Sending historical data!");
                                 sendToClient(ws, {'type': 'batch stats', 'data': arr});
+                                
                             });
                         break;
                     //Add pump in later if we want

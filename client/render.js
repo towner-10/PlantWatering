@@ -1,6 +1,6 @@
 const maxDataPointElements = 2400;
 var timeScale = 60; // how many of config.scales.xAxes.time.unit to count
-const maxGraphShownDataPoints = 128; // Show this many data points before beginning to smooth
+var maxGraphShownDataPoints = 256; // Show this many data points before beginning to smooth
 // TODO: Add in curve averaging
 // TODO: Add in recovering data after loss of connection
 var moisture = 60;
@@ -82,6 +82,28 @@ window.addEventListener('load', (event) => {
 
     timeUnitSelector = document.getElementById("timeUnitSelector");
     timeUnitSelector.addEventListener("input", async () => {
+
+        let timeUnitName;
+        switch (timeUnitSelector.selectedIndex) {
+            case 0:
+                timeUnitName = 'second'
+                break;
+            case 1:
+                timeUnitName = 'minute'
+                break;
+            case 2:
+                timeUnitName = 'hour'
+                break;
+            case 3:
+                timeUnitName = 'day'
+                break;
+
+        }
+
+        config.options.scales.xAxes[0].time.unit = timeUnitName;
+        
+        timeUnit = timeUnitSelector.value;
+        
         // Request for historical data if data on dash is not enough
         let startTime = Date.now() * 0.001 - timeScale * (timeUnit / 1000); //What time we should start at
         let earliestTime = globalDataPoints[0].x.getTime() / 1000 // The earliest data point we have
@@ -90,10 +112,8 @@ window.addEventListener('load', (event) => {
         if (earliestTime > startTime) {
             console.log("We're requesting historical data");
             // If not, request the historical data over the interval required
-            requestHistoricalData(StatTypes.MOISTURE, startTime, earliestTime - 1);
+            requestHistoricalData(StatTypes.MOISTURE, startTime- 20 * (timeUnit/1000), earliestTime - 1);
         }
-
-        timeUnit = timeUnitSelector.value;
     });
 
     bubble = document.getElementById("timeSelectorBubble"); //bubbles stolen from https://css-tricks.com/value-bubbles-for-range-inputs/
@@ -113,14 +133,14 @@ window.addEventListener('load', (event) => {
         bubble.style.left = newVal + "%";
 
         // Request for historical data if data on dash is not enough
-        let startTime = Date.now() * 0.001 - timeScale * (timeUnit / 1000); //What time we should start at
+        let startTime = Date.now() * 0.001 - timeScale * (timeUnit / 1000); //What time we should start at (also request a bit more as a buffer)
         let earliestTime = globalDataPoints[0].x.getTime() / 1000 // The earliest data point we have
 
         // Check if the current time in the global data point cache is enough
         if (earliestTime > startTime) {
             console.log("We're requesting historical data");
             // If not, request the historical data over the interval required
-            requestHistoricalData(StatTypes.MOISTURE, startTime, earliestTime - 1);
+            requestHistoricalData(StatTypes.MOISTURE, startTime - 20 * (timeUnit/1000), earliestTime - 1);
         }
     });
 
@@ -186,13 +206,13 @@ function connect() {
 
                     while (globalDataPoints.length > maxDataPointElements * timeUnit/1000) globalDataPoints.shift();
         
-                    globalDataPoints.sort((a,b) => {
-                        return a.x > b.x;
-                    })
+                    globalDataPoints = globalDataPoints.sort((a,b) => {
+                        return a.x - b.x;
+                    });
 
                     updateChartData(
                         globalDataPoints.filter((value) => {
-                            return (Math.abs(time - value.x) / timeUnit) < timeScale; // filter out the ones that are after the timescale requested in seconds
+                            return (Math.abs(time.getTime() - value.x.getTime()) / timeUnit) < timeScale; // filter out the ones that are after the timescale requested in seconds
                         })
                     );
         
@@ -207,16 +227,26 @@ function connect() {
                         }
                     })
 
-                    globalDataPoints = globalDataPoints.concat(stats);
-                    globalDataPoints.sort((a,b) => {
-                        return a.x > b.x;
-                    })
+                    if (stats.length >= 999) {  //If the update is big, disable things that are hard to animate for a bit
+                        const savedMaxGraphShownDataPoints = maxGraphShownDataPoints;
+                        maxGraphShownDataPoints = 48; 
+
+                        setTimeout(() => {
+                            maxGraphShownDataPoints = savedMaxGraphShownDataPoints;
+                        }, 700); 
+                        
+                    }
+                    globalDataPoints = globalDataPoints
+                        .concat(stats)
+                        .sort((a,b) => {
+                            return a.x - b.x;
+                        });
 
                 
-                    while (globalDataPoints.length > maxDataPointElements* timeUnit/1000) globalDataPoints.shift();
+                    while (globalDataPoints.length > maxDataPointElements * timeUnit/1000) globalDataPoints.shift();
         
                     updateChartData(globalDataPoints.filter((value) => {
-                        return (Math.abs(new Date(Date.now) - value.x) / timeUnit) < timeScale; // filter out the ones that are after the timescale requested in seconds
+                        return (Math.abs(Date.now() - value.x.getTime()) / timeUnit) < timeScale; // filter out the ones that are after the timescale requested in seconds
                     })
                     .filter((element, index, self) => { // Filter out any duplicates
                         return index === self.findIndex(obj => {
@@ -235,6 +265,7 @@ function connect() {
                     break;
                 
                 case 'enable':
+                    console.info("Enable state of plant waterer is now", json.value);
                     enableSwitch.value = json.value;
                     break;
             }
@@ -278,97 +309,35 @@ function requestHistoricalData(statType, from, to) {
 
 /**
  * Sets the chart's data array and renders it.
- * If there's too much data, the data points are averaged out until there is not too much data.
+ * If there's too much data, some data points are removed.
  * @param {Array} data 
  */
 async function updateChartData(data) {
-   
-    /* This code was to save memory but it is more efficient to not use it than to use it
-    //console.log("data", data);
+
+    if (data === undefined) data = [];
     
-    const minCountableDistance = 0.02; //  How small of a contribution towards the final product before we just discard the value
+    data1 = Object.assign(data); // copy so we don't mess anything up
 
-    //map a set of data with x points into one with maxGraphShownDataPoints
-    const originalLength = data.length;
+    if (data1.length > maxGraphShownDataPoints) {
+        var frac = data1.length/(data1.length-maxGraphShownDataPoints);
+        data1 = data1.filter((element, index) => {
+            if (Math.floor(index % frac) === 0) {
+                return false;
+            } else {
+                return true;
+            }
+        })
+    }
 
-    /**
-     * Generates a distance map.
-     * @param {Integer} arg0 - How many values exist in this distance map 
-     */
-    /*
-    function generateDistanceMap(arg0) {
-        dmap = [];
-        let increment = 1.0/(arg0-1.0);
+    config.data.datasets[0].data = (data1.sort((a,b) => {
+        return a.x - b.x;
+    }));
+    console.log(config.data.datasets);
 
-        for (let i = 0; i < arg0; i++) {
-            dmap[i] = i * increment;
-        }
-
-        return dmap;
-    } 
-
-
-    // map all original points to distances if current length is greater than the max length
-    if (originalLength > maxGraphShownDataPoints) {
-        console.info("Max length organizing");
-
-        distanceMapOriginal = generateDistanceMap(originalLength);
-        distanceMapNew = generateDistanceMap(maxGraphShownDataPoints);
-    
-        weightsMap = []; // What weight to assign to each point for each new point
-
-        //console.info("distanceMapOriginal", distanceMapOriginal);
-        //console.info("distanceMapNew", distanceMapNew);
-
-        weightsMap = distanceMapNew.map((element, index, self) => {
-
-            var totalWeight = 0.0;
-            // A map of the weights between all the original points and this point
-            let r1 = distanceMapOriginal.map((el2, index) => {
-                let ret = {};
-                ret.index = index;
-                let distance = Math.abs(el2 - element);
-
-                ret.weight = 1.0/Math.pow(distance === 0 ? 0.001 : distance,4); // Power so that big values become much bigger and small values become much smaller 
-                totalWeight += ret.weight;
-                return ret;
-            })
-            //console.log("r1", r1, totalWeight);
-
-            let r2 = r1.map((el2) => {            // Normalize the vector so that all the weights add up to one
-                el2.weight = el2.weight / totalWeight;
-                return el2;
-            });
-
-            //console.log("r2", r2);
-            return r2;
-            
-        });
-
-        //console.info("weightsmap", weightsMap);
-
-        data = weightsMap.map((element) => {
-            let ret = {x:0,y:0};
-
-            element.some((el2) => {
-                if (el2.weight === NaN) {
-                    ret = data[el2.index];
-                    return true;
-                }
-                ret.x += data[el2.index].x.getTime() * el2.weight;
-                ret.y += data[el2.index].y * el2.weight;
-                //console.log("Ret +=", data[el2.index] * el2.weight);
-            })
-
-            if (typeof ret.x !== 'object') ret.x = new Date(ret.x);
-            return ret;
-        });
-        // Process data based on the weightsMap
-        console.info("It be done", data.length);
-    }    
-    */
-
-    config.data.datasets[0].data = data;
-    chart.update();
+    chart.update({
+        lazy: true, //make sure it can be interrupted if necessary
+        easing: 'linear', //looks a bit smoother than default for this application
+        duration: 400
+    });
 
 }
