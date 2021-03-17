@@ -1,0 +1,3 @@
+[submodule "NodePortableForPi"]
+	path = NodePortableForPi
+	url = https://github.com/Dart513/NodePortableForPi
