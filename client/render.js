@@ -17,7 +17,7 @@ var webSocket;
 var timeUnit = 1000;
 
 // Keep track of disconnections
-var lastTimeConnected = Date.now() / 1000;
+var lastTimeConnected = (Date.now() / 1000 - 60);
 
 // enum describing types of statistics
 const StatTypes = {
@@ -110,7 +110,6 @@ window.addEventListener('load', (event) => {
 
         // Check if the current time in the global data point cache is enough
         if (earliestTime > startTime) {
-            console.log("We're requesting historical data");
             // If not, request the historical data over the interval required
             requestHistoricalData(StatTypes.MOISTURE, startTime- 20 * (timeUnit/1000), earliestTime - 1);
         }
@@ -138,7 +137,6 @@ window.addEventListener('load', (event) => {
 
         // Check if the current time in the global data point cache is enough
         if (earliestTime > startTime) {
-            console.log("We're requesting historical data");
             // If not, request the historical data over the interval required
             requestHistoricalData(StatTypes.MOISTURE, startTime - 20 * (timeUnit/1000), earliestTime - 1);
         }
@@ -174,6 +172,8 @@ window.addEventListener('load', (event) => {
     
     // Connect to the WebSocket and create listeners
     connect();
+    
+    
 });
 
 function connect() {
@@ -187,7 +187,7 @@ function connect() {
         requestHistoricalData(StatTypes.MOISTURE, lastTimeConnected, Date.now() / 1000);
     };
     
-    webSocket.onmessage = async function(event) {
+    webSocket.onmessage = function(event) {
         json = JSON.parse(event.data);
         type = json.type;
 
@@ -277,6 +277,7 @@ function connect() {
         console.log('Connection closed');
         lastTimeConnected = Date.now() / 1000;
     }
+    
 }
 
 /** Function which condenses websocket calls down 
@@ -298,6 +299,7 @@ function sendMessage(data) {
  * @param {Number} to - Millis to request to (including this value)
  */
 function requestHistoricalData(statType, from, to) {
+    console.info("Requesting historical data");
     sendMessage({
         'type': 'historical data request',
         'statType': statType,
