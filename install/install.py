@@ -4,14 +4,14 @@ import re
 import subprocess
 import sys
 from configparser import SafeConfigParser
-from crontab import CronTab
+from os import path
 
 global setUpEternal
 setUpEternal = None
 
 def askIfEternal(data):
     print("Watchdog is helpful for this program. Please install and configure it manually.")
-    print("Would you like to set up the Raspberry Pi to be a dedicated plant watering system? (Sets up custom cron jobs) [Y/N]")
+    print("Would you like to set up the Raspberry Pi to be a dedicated plant watering system? (Sets up custom .xinitrc jobs) [Y/N]")
     response = input()
     while ((re.search("Y", response, re.IGNORECASE) != None) ^ (re.search("N", response, re.IGNORECASE) != None)) != True:
         print("Please enter the characters Y or N.")
@@ -26,17 +26,21 @@ data = None
 try:
     with open('install-preferences.json') as f:
         data = json.load(f)
-        setUpEternal = data['setUpEternal']
 
 except FileNotFoundError:
+    print("Config file not found")
     askIfEternal(data);
 
 except json.decoder.JSONDecodeError:
+    print("Config file not json")
     askIfEternal(data);
 
 finally:
+    setUpEternal = data['setUpEternal']
+
     if setUpEternal == None:
-        askIfEternal(data);
+        print("Config file empty")
+        askIfEternal(data)
 
 
 # Write to the json file
@@ -44,8 +48,6 @@ if data == None:
     data = {
         'setUpEternal': setUpEternal
     }
-else:
-    data['setUpEternal'] = setUpEternal
 
 with open('install-preferences.json', 'w') as json_file:
     json.dump(data, json_file)
@@ -53,25 +55,22 @@ with open('install-preferences.json', 'w') as json_file:
 
 
 if setUpEternal:
-    # Install a cron job, if one's not already there
+    # Install in autostart, if one's not already there
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    command = "@sudo -u pi env DISPLAY=:0.0 x-terminal-emulator -e 'sh " + dir_path + "/../start.sh' >> " + dir_path + "/../logs/log.txt 2>&1\n"
 
-    my_cron = CronTab(user='pi')
-    cronjob_exists = False
-    for job in my_cron:
-        if str(job).startswith("#"):
-            continue 
-        if job.comment == 'Plant Waterer':
-            cronjob_exists = True
-            break
-    
-    if (cronjob_exists == False):
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        command = 'sudo sh ' + dir_path + '/../start.sh >> ' + dir_path + '/../logs/log.txt 2>&1'
-        job = my_cron.new(command=command, comment = 'Plant Waterer')
-        job.every_reboot()
+    hasCommand = False
+    with open('/etc/xdg/lxsession/LXDE/autostart') as ft:
+        for line in ft:
+            line = line.replace("\n", "")
+            if command in line:
+                hasCommand = true
 
-    my_cron.write()
-        
+    if hasCommand == False:
+        with open('/etc/xdg/lxsession/LXDE/autostart', 'a+') as ft:
+            ft.write(command)
+
+
         
 
 # Set up i2c
@@ -97,7 +96,15 @@ if (i2c_arm_on == False):
 
 f.close()
 
+#Make the start.sh file
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
+with open('start.sh', 'w+') as f:
+    f.write("#!/bin/sh\n"
+    + "# start.sh\n"
+    + "# Navigate and execute the PlantWaterer.\n"
+    + "cd " + dir_path + "/../PlantWaterer\n"
+    + "sudo ../NodePortableForPi/bin/node index.js # Plant Waterer")
 
 print("Please reboot your pi for the changes to take effect. \nPress Enter to exit.......")
 sys.stdin.read(1)

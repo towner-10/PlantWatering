@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type = Application
+Version = 1.0
+Name = PlantWaterer
+Comment = Plant watering & moisture tracking app
+Exec = sudo -u pi env DISPLAY=:0.0 x-terminal-emulator -e 'sh /home/pi/Documents/Nodes/Water/install/../start.sh 2> /home/pi/Documents/Nodes/Water/install/../logs/log.txt' # Plant Waterer
