@@ -1,3 +1,4 @@
 logs/*
 *install-preferences.json
 start.sh
+storage.db
