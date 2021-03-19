@@ -26,6 +26,11 @@ data = None
 try:
     with open('install-preferences.json') as f:
         data = json.load(f)
+        try:
+            setUpEternal = data['setUpEternal']
+        
+        finally:
+            print()
 
 except FileNotFoundError:
     print("Config file not found")
@@ -36,7 +41,7 @@ except json.decoder.JSONDecodeError:
     askIfEternal(data);
 
 finally:
-    setUpEternal = data['setUpEternal']
+    
 
     if setUpEternal == None:
         print("Config file empty")
