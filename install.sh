@@ -11,4 +11,4 @@ chmod 775 ./NodePortableForPi/bin/node
 
 echo "Setting up node packages"
 cd "$(readlink -f $(dirname "$0"))/PlantWaterer"
-../NodePortableForPi/bin/npm i
+sudo ../NodePortableForPi/bin/npm i

@@ -65,14 +65,14 @@ if setUpEternal:
     command = "@sudo -u pi env DISPLAY=:0.0 x-terminal-emulator -e 'sh " + dir_path + "/../start.sh' >> " + dir_path + "/../logs/log.txt 2>&1\n"
 
     hasCommand = False
-    with open('/etc/xdg/lxsession/LXDE/autostart') as ft:
+    with open('~/.config/lxsession/LXDE-pi/autostart') as ft:
         for line in ft:
             line = line.replace("\n", "")
             if command in line:
-                hasCommand = true
+                hasCommand = True
 
     if hasCommand == False:
-        with open('/etc/xdg/lxsession/LXDE/autostart', 'a+') as ft:
+        with open('~/.config/lxsession/LXDE-pi/autostart', 'a+') as ft:
             ft.write(command)
 
 
@@ -111,7 +111,7 @@ with open('start.sh', 'w+') as f:
     + "cd " + dir_path + "/../PlantWaterer\n"
     + "sudo ../NodePortableForPi/bin/node index.js # Plant Waterer")
 
-print("Please reboot your pi for the changes to take effect. \nPress Enter to exit.......")
+print("Please reboot your pi for the changes to take effect. \nPress Enter to continue.......")
 sys.stdin.read(1)
 
     
