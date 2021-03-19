@@ -9,4 +9,6 @@ sudo python3 ./install/install.py
 chmod 775 start.sh
 chmod 775 ./NodePortableForPi/bin/node
 
-./NodePortableForPi/bin/npm i
+echo "Setting up node packages"
+cd "$(readlink -f $(dirname "$0"))/PlantWaterer"
+../NodePortableForPi/bin/npm i
